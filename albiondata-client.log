@@ -1,0 +1,23 @@
+INFO[2026-04-22T12:30:06+02:00] Starting Albion Data Client, version: 0.1.52 
+INFO[2026-04-22T12:30:06+02:00] This is a third-party application and is in no way affiliated with Sandbox Interactive or Albion Online. 
+INFO[2026-04-22T12:30:06+02:00] Additional parameters can listed by calling this file with the -h parameter. 
+INFO[2026-04-22T12:30:06+02:00] Watching Albion                              
+INFO[2026-04-22T12:30:20+02:00] Updating player location to 3004.            
+INFO[2026-04-22T12:30:24+02:00] Updating player location to 3004.            
+INFO[2026-04-22T12:30:24+02:00] Updating player ID to 299db7f8-cf9b-4f2c-bc0c-53a0b5633642. 
+INFO[2026-04-22T12:30:24+02:00] Updating player to ForNestic.                
+INFO[2026-04-22T12:30:27+02:00] Updating player location to 3008.            
+INFO[2026-04-22T12:30:27+02:00] Updating player ID to .                      
+INFO[2026-04-22T12:30:27+02:00] Updating player to .                         
+INFO[2026-04-22T12:30:31+02:00] Updating player location to 3008.            
+INFO[2026-04-22T12:30:31+02:00] Updating player ID to 299db7f8-cf9b-4f2c-bc0c-53a0b5633642. 
+INFO[2026-04-22T12:30:31+02:00] Updating player to ForNestic.                
+INFO[2026-04-22T12:30:36+02:00] Sending 50 live market sell orders to ingest (Identifier: 9c73dd67-0752-4593-525d-7e9895b77e25) 
+INFO[2026-04-22T12:30:36+02:00] Upload is disabled.                          
+INFO[2026-04-22T12:30:36+02:00] Upload is disabled.                          
+INFO[2026-04-22T12:30:42+02:00] Sending 50 live market sell orders to ingest (Identifier: 7766d70f-9fb3-437c-5135-d663047b712d) 
+INFO[2026-04-22T12:30:42+02:00] Upload is disabled.                          
+INFO[2026-04-22T12:30:42+02:00] Upload is disabled.                          
+INFO[2026-04-22T12:30:48+02:00] Sending 50 live market sell orders to ingest (Identifier: 692e64ba-a00f-478d-752d-7de3c73a765e) 
+INFO[2026-04-22T12:30:48+02:00] Upload is disabled.                          
+INFO[2026-04-22T12:30:48+02:00] Upload is disabled.                          
