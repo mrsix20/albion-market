@@ -621,7 +621,7 @@ export default function ArbitrageTable() {
               const enchantLevel = isEnchanted ? op.item_id.split('@')[1] : '0';
               const inGameName = getInGameName(op.item_id);
               const isRestricted = !isPro && isProDeal(op);
-              const isPrivate = op.is_private;
+              const isPrivate = (op as any).is_private;
 
               const enchantColors: Record<string, string> = {
                 '1': 'bg-green-500', '2': 'bg-blue-500', '3': 'bg-purple-500',
