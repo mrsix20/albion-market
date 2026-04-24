@@ -308,20 +308,22 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-            <Link 
-              href="https://discord.gg/sh4aCcFSGP" 
-              target="_blank"
-              className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] group"
-            >
-              <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform" />
-            </Link>
+              <>
+                <Link 
+                  href="https://discord.gg/sh4aCcFSGP" 
+                  target="_blank"
+                  className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] group"
+                >
+                  <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                </Link>
 
-            <button 
-              onClick={handleAuthAction}
-              className="px-6 py-2 bg-amber-500 text-slate-900 rounded-lg font-semibold text-sm hover:bg-amber-400 shadow-[0_4px_15px_rgba(245,158,11,0.3)] transition-all active:scale-95"
-            >
-              Sign In
-            </button>
+                <button 
+                  onClick={handleAuthAction}
+                  className="px-6 py-2 bg-amber-500 text-slate-900 rounded-lg font-semibold text-sm hover:bg-amber-400 shadow-[0_4px_15px_rgba(245,158,11,0.3)] transition-all active:scale-95"
+                >
+                  Sign In
+                </button>
+              </>
             )}
           </div>
         </div>
