@@ -139,7 +139,7 @@ export default function Header() {
       isLive: false 
     },
   ];
-
+  // --- Render Sections ---
   return (
     <>
       {/* Background Overlay when menu is open */}
