@@ -12,6 +12,7 @@ export interface ArbitrageOpportunity {
   buy_price_date: string;
   sell_price_date: string;
   demand?: number;
+  is_private?: boolean;
 }
 
 export interface FlipperResponse {
