@@ -47,7 +47,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (!pathname) return;
       
       const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
