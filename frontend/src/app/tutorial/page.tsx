@@ -7,6 +7,21 @@ import { Play, Search, TrendingUp, ShieldCheck, HelpCircle, ArrowRight } from 'l
 import { motion } from 'framer-motion';
 
 const TutorialPage = () => {
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  const handlePlayToggle = () => {
+    if (!videoRef.current) return;
+    
+    if (isPlaying) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      videoRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
   const steps = [
     {
       icon: <Search className="w-8 h-8 text-amber-400" />,
@@ -55,38 +70,103 @@ const TutorialPage = () => {
           </motion.div>
         </div>
 
-        {/* Video Section */}
-        <div className="max-w-5xl mx-auto mb-32">
+        {/* Premium Video Section */}
+        <div className="max-w-5xl mx-auto mb-32 px-4">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative group"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="relative"
           >
-            {/* Decorative Frame */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/50 via-amber-200/20 to-amber-500/50 rounded-2xl blur opacity-30 group-hover:opacity-100 transition duration-1000"></div>
+            {/* Ambient Background Glow */}
+            <div className="absolute -inset-10 bg-amber-500/5 blur-[120px] rounded-full pointer-events-none"></div>
             
-            <div className="relative bg-[#121214] rounded-2xl overflow-hidden border border-white/10 aspect-video shadow-2xl">
-              {/* This is where the YouTube video goes */}
-              <iframe
-                className="w-full h-full"
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ" // Placeholder - update with user's video ID
-                title="Albion Market Analyzer Tutorial"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+            {/* The Main Frame (Simplified & Leak-Proof) */}
+            <div className="relative group">
+              {/* Premium Frame with integrated glow */}
+              <div className="relative bg-[#06080c] p-4 rounded-[2.5rem] border border-white/5 shadow-[0_0_50px_rgba(245,158,11,0.1)] group-hover:shadow-[0_0_60px_rgba(245,158,11,0.2)] transition-shadow duration-500">
+                
+                {/* Inner Video Container with Cinematic Thumbnail Background */}
+                <div className="relative rounded-[1.5rem] overflow-hidden aspect-video group bg-[#06080c]">
+                  
+                  {/* Cinematic Background Image (Visible when video is paused) */}
+                  <div 
+                    className="absolute inset-0 z-0 opacity-40 blur-[2px]"
+                    style={{ 
+                      backgroundImage: `url('/tutorial_bg.png')`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center'
+                    }}
+                  ></div>
 
-              {/* Overlay (Hidden when video starts) */}
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none group-hover:bg-black/20 transition-all">
-                <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/50 transform group-hover:scale-110 transition-transform">
-                  <Play className="w-10 h-10 text-black fill-black ml-1" />
+                  {/* The Native Video Player (Hidden when paused to stop bleeding) */}
+                  <video
+                    ref={videoRef}
+                    className={`relative w-full h-full object-cover block bg-black/40 transition-opacity duration-700 z-10 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}
+                    playsInline
+                    preload="auto"
+                    poster="/tutorial_bg.png"
+                    onEnded={() => setIsPlaying(false)}
+                    src="https://vjs.zencdn.net/v/oceans.mp4"
+                  >
+                    <source src="https://vjs.zencdn.net/v/oceans.mp4" type="video/mp4" />
+                  </video>
+
+                  {/* Custom Controls (Play/Pause Overlay) */}
+                  {isPlaying && (
+                    <div 
+                      onClick={handlePlayToggle}
+                      className="absolute -inset-[2px] z-40 bg-transparent group-hover:bg-black/20 cursor-pointer flex items-center justify-center transition-all rounded-[1.5rem]"
+                    >
+                      <div className="opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300">
+                        <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl">
+                          <div className="w-3 h-8 bg-white rounded-full mx-1"></div>
+                          <div className="w-3 h-8 bg-white rounded-full mx-1"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* High-End Start Overlay */}
+                  {!isPlaying && (
+                    <div 
+                      onClick={handlePlayToggle}
+                      className="absolute -inset-[2px] bg-black/20 backdrop-blur-sm flex flex-col items-center justify-center cursor-pointer group-hover:bg-black/10 transition-all duration-700 z-50 rounded-[1.5rem]"
+                    >
+                      <div className="relative mb-10">
+                        <div className="absolute inset-0 bg-amber-500 rounded-full blur-[60px] opacity-30 animate-pulse"></div>
+                        <div className="relative w-28 h-28 bg-transparent border-2 border-amber-500/50 rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(245,158,11,0.3)] transform group-hover:scale-110 transition-all duration-700">
+                          <Play className="w-14 h-14 text-amber-500 fill-amber-500 ml-1.5" />
+                        </div>
+                      </div>
+                      
+                      <div className="text-center px-6">
+                        <span className="text-amber-500 font-bold text-[10px] uppercase tracking-[0.8em] block mb-6 animate-pulse">Incoming Transmission</span>
+                        <h3 className="text-white font-black text-4xl md:text-6xl tracking-tighter mb-4 italic">PREPARE FOR <span className="text-amber-500">DOMINANCE</span></h3>
+                        <p className="text-white/50 text-sm font-medium tracking-[0.2em] max-w-md mx-auto leading-relaxed uppercase">
+                          The next era of Albion market intelligence is arriving.
+                        </p>
+                        <div className="h-[2px] w-48 bg-gradient-to-r from-transparent via-amber-500 to-transparent mt-10 mx-auto"></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ULTIMATE MASKING: Inner Shadow + Corner Frame */}
+                  <div 
+                    className="absolute inset-0 z-[60] pointer-events-none rounded-[1.5rem] border-[4px] border-[#06080c]"
+                    style={{ boxShadow: 'inset 0 0 10px #06080c' }}
+                  ></div>
                 </div>
               </div>
+
+              {/* Decorative Corner Tabs */}
+              <div className="absolute top-0 left-12 right-12 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent"></div>
+              <div className="absolute bottom-0 left-12 right-12 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent"></div>
             </div>
             
-            {/* Legend Tag */}
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-black px-6 py-1 rounded-full text-sm font-bold uppercase tracking-widest shadow-lg border-2 border-black">
-              Official Guide
+            {/* Project Status Badge */}
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#06080c] text-amber-500 px-6 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.4em] shadow-xl border border-amber-500/20 z-30">
+              Official Tutorial
             </div>
           </motion.div>
         </div>

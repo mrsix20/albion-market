@@ -29,5 +29,7 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(new URL('/', request.url).toString());
+  // Handle dynamic redirect after auth
+  const next = requestUrl.searchParams.get('next') ?? '/';
+  return NextResponse.redirect(new URL(next, request.url).toString());
 }
