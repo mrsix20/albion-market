@@ -1,4 +1,5 @@
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import ArbitrageTable from "@/components/ArbitrageTable";
 
 export default function BlackMarketPage() {
@@ -23,11 +24,7 @@ export default function BlackMarketPage() {
           </div>
         </main>
         
-        <footer className="py-8 border-t border-white/5 bg-slate-950/80 backdrop-blur-md mt-auto">
-          <div className="container mx-auto px-6 text-center text-slate-500 text-sm">
-            <p>&copy; {new Date().getFullYear()} Albion Market Analyzer. Not affiliated with Sandbox Interactive GmbH.</p>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </div>
   );

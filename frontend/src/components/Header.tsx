@@ -161,6 +161,7 @@ export default function Header() {
           
           <nav className="flex items-center gap-8">
             <Link href="/" className="text-sm font-bold text-slate-400 hover:text-white transition-colors">Home</Link>
+            <Link href="/tutorial" className="text-sm font-bold text-slate-400 hover:text-white transition-colors">How it Works</Link>
             
             {/* Market Dropdown Container */}
             <div className="relative h-20 flex items-center" ref={dropdownRef}>
@@ -169,7 +170,7 @@ export default function Header() {
                 onClick={() => setIsMarketOpen(!isMarketOpen)}
                 className={`flex items-center gap-1 text-sm font-bold transition-colors ${isMarketOpen ? 'text-white' : 'text-slate-400 hover:text-white'}`}
               >
-                Market
+                Market Tools
                 <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMarketOpen ? 'rotate-180' : ''}`} />
               </button>
 

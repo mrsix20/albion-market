@@ -1,6 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import ToolCard from "@/components/ToolCard";
 import { TrendingUp, Hammer, Sprout, Ship, ShieldCheck, Zap, ChevronRight } from "lucide-react";
 
@@ -197,11 +198,7 @@ export default function Home() {
           </section>
         </main>
 
-        <footer className="py-12 border-t border-white/5 bg-slate-950/80 backdrop-blur-md">
-          <div className="container mx-auto px-6 text-center text-slate-500 text-sm">
-            <p>&copy; {new Date().getFullYear()} Albion Market Analyzer. Not affiliated with Sandbox Interactive GmbH.</p>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </div>
   );
