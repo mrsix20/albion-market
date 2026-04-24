@@ -32,8 +32,10 @@ export interface ItemPrice {
   buy_price_max_date: string;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export async function getBlackMarketFlips(items: string[]): Promise<FlipperResponse> {
-  const response = await fetch('http://localhost:8000/api/v1/flipper', {
+  const response = await fetch(`${API_BASE}/api/v1/flipper`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -67,7 +69,7 @@ export async function getItemPrices(itemId: string, locations: string[] = [], qu
 }
 
 export async function invalidateDeal(itemId: string, quality: number, city: string): Promise<void> {
-  const response = await fetch('http://localhost:8000/api/v1/private-sync/invalidate', {
+  const response = await fetch(`${API_BASE}/api/v1/private-sync/invalidate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
