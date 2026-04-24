@@ -1,25 +1,60 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Play, Search, TrendingUp, ShieldCheck, HelpCircle, ArrowRight } from 'lucide-react';
+import { Play, Pause, Search, TrendingUp, ShieldCheck, HelpCircle, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const TutorialPage = () => {
-  const [isPlaying, setIsPlaying] = React.useState(false);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handlePlayToggle = () => {
-    if (!videoRef.current) return;
-    
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      videoRef.current.play();
-      setIsPlaying(true);
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
     }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const current = videoRef.current.currentTime;
+      const total = videoRef.current.duration;
+      setProgress((current / total) * 100);
+      setCurrentTime(current);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (videoRef.current) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const width = rect.width;
+      const percentage = x / width;
+      const newTime = percentage * videoRef.current.duration;
+      videoRef.current.currentTime = newTime;
+      setProgress(percentage * 100);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
   const steps = [
@@ -99,29 +134,73 @@ const TutorialPage = () => {
                     }}
                   ></div>
 
-                  {/* The Native Video Player (Hidden when paused to stop bleeding) */}
+                  {/* The Native Video Player (With Logic Hooks) */}
                   <video
                     ref={videoRef}
                     className={`relative w-full h-full object-cover block bg-black/40 transition-opacity duration-700 z-10 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}
                     playsInline
                     preload="auto"
                     poster="/tutorial_bg.png"
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
                     onEnded={() => setIsPlaying(false)}
+                    onClick={handlePlayToggle}
                     src="https://vjs.zencdn.net/v/oceans.mp4"
                   >
                     <source src="https://vjs.zencdn.net/v/oceans.mp4" type="video/mp4" />
                   </video>
 
-                  {/* Custom Controls (Play/Pause Overlay) */}
+                  {/* High-End Custom Controls Bar (Visible on Hover or Play) */}
+                  {isPlaying && (
+                    <div className="absolute bottom-0 left-0 right-0 z-[70] p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex flex-col gap-3">
+                        {/* Progress Bar Container */}
+                        <div 
+                          className="relative h-1.5 w-full bg-white/20 rounded-full cursor-pointer group/progress overflow-hidden"
+                          onClick={handleSeek}
+                        >
+                          <div 
+                            className="absolute top-0 left-0 h-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] transition-all duration-100"
+                            style={{ width: `${progress}%` }}
+                          ></div>
+                          {/* Hover Handle */}
+                          <div className="absolute top-1/2 -translate-y-1/2 h-4 w-4 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-xl"
+                            style={{ left: `${progress}%`, marginLeft: '-8px' }}
+                          ></div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <button 
+                              onClick={handlePlayToggle}
+                              className="text-white hover:text-amber-500 transition-colors"
+                            >
+                              {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                            </button>
+                            <div className="text-[10px] font-black text-white tracking-widest flex items-center gap-2">
+                              <span className="text-amber-500">{formatTime(currentTime)}</span>
+                              <span className="opacity-30">/</span>
+                              <span className="opacity-60">{formatTime(duration)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-[8px] font-black text-amber-500/50 uppercase tracking-[0.3em]">
+                            HD Performance Stable
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Play/Pause Overlay Toggle (For centered big button) */}
                   {isPlaying && (
                     <div 
                       onClick={handlePlayToggle}
-                      className="absolute -inset-[2px] z-40 bg-transparent group-hover:bg-black/20 cursor-pointer flex items-center justify-center transition-all rounded-[1.5rem]"
+                      className="absolute inset-0 z-40 bg-transparent group-hover:bg-black/20 cursor-pointer flex items-center justify-center transition-all"
                     >
                       <div className="opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300">
                         <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl">
-                          <div className="w-3 h-8 bg-white rounded-full mx-1"></div>
-                          <div className="w-3 h-8 bg-white rounded-full mx-1"></div>
+                          <Pause className="w-8 h-8 text-white fill-white" />
                         </div>
                       </div>
                     </div>
@@ -184,11 +263,11 @@ const TutorialPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="relative p-8 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-amber-500/30 transition-all group"
+                className="relative p-8 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-amber-500/30 transition-all group text-center"
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${step.color} rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity`}></div>
                 <div className="relative z-10">
-                  <div className="mb-6 p-3 bg-white/[0.05] rounded-xl w-fit group-hover:scale-110 transition-transform">
+                  <div className="mb-6 w-14 h-14 bg-white/[0.05] rounded-xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                     {step.icon}
                   </div>
                   <h3 className="text-xl font-bold mb-4 text-white group-hover:text-amber-400 transition-colors">
@@ -210,13 +289,23 @@ const TutorialPage = () => {
             <p className="text-gray-400 mb-10 text-lg">
               The silver is waiting. Join thousands of traders using our data to make millions every day.
             </p>
-            <a
-              href="/black-market"
-              className="px-10 py-4 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20 inline-flex items-center gap-2 group"
-            >
-              Go to Market Analyzer
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </a>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+              <a
+                href="/black-market"
+                className="px-10 py-4 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20 inline-flex items-center gap-2 group w-full md:w-auto justify-center"
+              >
+                Go to Market Analyzer
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </a>
+              <a
+                href="https://discord.gg/sh4aCcFSGP"
+                target="_blank"
+                className="px-10 py-4 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500 hover:text-white font-bold rounded-xl transition-all inline-flex items-center gap-2 group w-full md:w-auto justify-center"
+              >
+                <MessageSquare className="w-5 h-5" />
+                Join Community
+              </a>
+            </div>
           </div>
         </div>
       </main>

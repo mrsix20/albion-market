@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { User as UserIcon, ChevronDown, TrendingUp, Hammer, Sprout, Ship, Zap, Clock, ShieldCheck, ArrowRight, Crown } from 'lucide-react';
+import { User as UserIcon, ChevronDown, TrendingUp, Hammer, Sprout, Ship, Zap, Clock, ShieldCheck, ArrowRight, Crown, MessageSquare } from 'lucide-react';
 
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
@@ -308,12 +308,20 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <button 
-                onClick={handleAuthAction}
-                className="px-6 py-2 bg-amber-500 text-slate-900 rounded-lg font-semibold text-sm hover:bg-amber-400 shadow-[0_4px_15px_rgba(245,158,11,0.3)] transition-all active:scale-95"
-              >
-                Sign In
-              </button>
+            <Link 
+              href="https://discord.gg/sh4aCcFSGP" 
+              target="_blank"
+              className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-lg shadow-indigo-500/5 group"
+            >
+              <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            </Link>
+
+            <button 
+              onClick={handleAuthAction}
+              className="px-6 py-2 bg-amber-500 text-slate-900 rounded-lg font-semibold text-sm hover:bg-amber-400 shadow-[0_4px_15px_rgba(245,158,11,0.3)] transition-all active:scale-95"
+            >
+              Sign In
+            </button>
             )}
           </div>
         </div>
