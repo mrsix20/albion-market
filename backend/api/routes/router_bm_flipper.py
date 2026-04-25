@@ -13,6 +13,7 @@ async def get_black_market_flips(request: FlipperRequest, x_user_id: Optional[st
     Find arbitrage opportunities between Royal Cities and the Black Market.
     """
     user_id = x_user_id or "global"
+    tax_rate = 0.04 if request.has_premium else 0.08
     # Combine target locations
     all_locations = request.royal_cities + [request.target_city]
     
@@ -148,7 +149,8 @@ async def get_black_market_flips(request: FlipperRequest, x_user_id: Optional[st
             profit_data = calculate_profit(
                 buy_price=city_sell_price,
                 sale_price=bm_price_max,
-                direct_sell=True
+                direct_sell=True,
+                tax_rate=tax_rate
             )
 
             # ROI check removed as per user request
@@ -225,7 +227,8 @@ async def get_black_market_flips(request: FlipperRequest, x_user_id: Optional[st
                 profit_data = calculate_profit(
                     buy_price=city_sell_price,
                     sale_price=tier_price,
-                    direct_sell=True
+                    direct_sell=True,
+                    tax_rate=tax_rate
                 )
                 
                 if profit_data["profit"] > 0:

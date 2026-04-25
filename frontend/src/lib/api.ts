@@ -35,7 +35,7 @@ export interface ItemPrice {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export async function getBlackMarketFlips(items: string[], userId?: string): Promise<FlipperResponse> {
+export async function getBlackMarketFlips(items: string[], userId?: string, hasPremium: boolean = false): Promise<FlipperResponse> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -56,7 +56,8 @@ export async function getBlackMarketFlips(items: string[], userId?: string): Pro
       body: JSON.stringify({
         items,
         royal_cities: ["Fort Sterling", "Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Caerleon"],
-        target_city: "Black Market"
+        target_city: "Black Market",
+        has_premium: hasPremium
       }),
     });
 

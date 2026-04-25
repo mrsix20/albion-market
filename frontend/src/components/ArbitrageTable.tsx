@@ -107,6 +107,7 @@ export default function ArbitrageTable() {
   const [isPro, setIsPro] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [hiddenDeals, setHiddenDeals] = useState<Set<string>>(new Set());
+  const [hasPremium, setHasPremium] = useState(false);
 
   const hideDeal = async (op: ArbitrageOpportunity) => {
     const key = `${op.item_id}-${op.quality}-${op.buy_from_city}`;
@@ -141,6 +142,9 @@ export default function ArbitrageTable() {
     const savedCity = localStorage.getItem('selectedCity');
     const savedCustomItems = localStorage.getItem('customItems');
     const savedSortConfig = localStorage.getItem('sortConfig');
+    const savedPremium = localStorage.getItem('hasPremium');
+    
+    if (savedPremium) setHasPremium(savedPremium === 'true');
     
     if (savedMinProfit) {
       setMinProfit(Number(savedMinProfit));
@@ -220,6 +224,11 @@ export default function ArbitrageTable() {
     localStorage.setItem('sortConfig', JSON.stringify(sortConfig));
   }, [sortConfig, isMounted]);
 
+  useEffect(() => {
+    if (!isMounted) return;
+    localStorage.setItem('hasPremium', hasPremium.toString());
+  }, [hasPremium, isMounted]);
+
   // CSS for Marquee animation
   useEffect(() => {
     const style = document.createElement('style');
@@ -275,7 +284,7 @@ export default function ArbitrageTable() {
         enchantedItems.push(`${item}@4`);
       });
 
-      const data = await getBlackMarketFlips(enchantedItems, user?.id);
+      const data = await getBlackMarketFlips(enchantedItems, user?.id, hasPremium);
       setOpportunities(data.opportunities);
       setError(null);
     } catch (err) {
@@ -320,6 +329,7 @@ export default function ArbitrageTable() {
     localStorage.removeItem('sortConfig');
     setSortConfig({ key: 'sell_price_date', direction: 'desc' });
     setHiddenDeals(new Set());
+    setHasPremium(false);
   };
 
   useEffect(() => {
@@ -330,7 +340,7 @@ export default function ArbitrageTable() {
       if (isMounted) fetchData();
     }, 60000);
     return () => clearInterval(interval);
-  }, [customItems, user, isMounted]);
+  }, [customItems, user, isMounted, hasPremium]);
 
   const requestSort = (key: keyof ArbitrageOpportunity) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -595,6 +605,24 @@ export default function ArbitrageTable() {
               %
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+            <Zap className={`w-3.5 h-3.5 ${hasPremium ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}`} /> 
+            Premium
+          </label>
+          <button 
+            onClick={() => setHasPremium(!hasPremium)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${
+              hasPremium 
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
+                : 'bg-slate-950 border-white/5 text-slate-500 hover:border-white/10'
+            }`}
+          >
+            <div className={`w-3 h-3 rounded-full transition-all ${hasPremium ? 'bg-amber-500 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 'bg-slate-800'}`} />
+            {hasPremium ? 'ACTIVE (4% TAX)' : 'INACTIVE (8% TAX)'}
+          </button>
         </div>
 
         <div className="flex items-center mb-1">
