@@ -1,4 +1,5 @@
 "use client";
+// Branded Security Shield: Optimized for Vercel
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
