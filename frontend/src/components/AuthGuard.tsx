@@ -1,5 +1,5 @@
 "use client";
-// Branded Security Shield: Optimized for Vercel
+// Branded Security Shield: Identity Verified
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
