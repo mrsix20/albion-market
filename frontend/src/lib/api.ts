@@ -44,26 +44,42 @@ export async function getBlackMarketFlips(items: string[], userId?: string): Pro
     headers['X-User-ID'] = userId;
   }
 
-  const response = await fetch(`${API_BASE}/api/v1/flipper`, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify({
-      items,
-      royal_cities: ["Fort Sterling", "Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Caerleon"],
-      target_city: "Black Market"
-    }),
-  });
+  // Add a 15-second timeout to prevent infinite hanging
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch flips');
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/flipper`, {
+      method: 'POST',
+      headers: headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        items,
+        royal_cities: ["Fort Sterling", "Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Caerleon"],
+        target_city: "Black Market"
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch flips');
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      return { opportunities: [] };
+    }
+
+    return response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    console.error("Fetch error:", error);
+    if (error.name === 'AbortError') {
+       console.warn("Request timed out after 15 seconds");
+    }
+    return { opportunities: [] }; // Return empty list instead of throwing to keep UI alive
   }
-
-  const contentType = response.headers.get("content-type");
-  if (!contentType || !contentType.includes("application/json")) {
-    return { opportunities: [] };
-  }
-
-  return response.json();
 }
 
 export async function getItemPrices(itemId: string, locations: string[] = [], qualities: number[] = []): Promise<ItemPrice[]> {

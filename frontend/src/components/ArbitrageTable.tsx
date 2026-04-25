@@ -323,11 +323,11 @@ export default function ArbitrageTable() {
   };
 
   useEffect(() => {
-    if (isMounted && user) {
+    if (isMounted) {
       fetchData();
     }
     const interval = setInterval(() => {
-      if (isMounted && user) fetchData();
+      if (isMounted) fetchData();
     }, 60000);
     return () => clearInterval(interval);
   }, [customItems, user, isMounted]);
