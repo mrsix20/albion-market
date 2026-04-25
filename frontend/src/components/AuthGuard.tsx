@@ -36,11 +36,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (isAuthRoute && session) {
-        router.push('/');
-        return;
-      }
-
       setIsAuthorized(true);
       setIsChecking(false);
     };
@@ -51,13 +46,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (!pathname) return;
       
       const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-      const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
 
       if (isProtectedRoute && !session) {
         setIsAuthorized(false);
         setIsChecking(false);
-      } else if (isAuthRoute && session) {
-        router.push('/');
       } else {
         setIsAuthorized(true);
         setIsChecking(false);

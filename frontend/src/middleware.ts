@@ -1,28 +1,50 @@
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  
-  // Create the supabase client using the new server-side method
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return req.cookies.get(name)?.value;
+          return request.cookies.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
-          req.cookies.set({
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
             name,
             value,
             ...options,
           });
         },
-        remove(name: string, options: any) {
-          req.cookies.set({
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
             name,
             value: '',
             ...options,
@@ -32,10 +54,7 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  // Check if we have a session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Define protected routes
   const protectedRoutes = [
@@ -43,21 +62,23 @@ export async function middleware(req: NextRequest) {
     '/black-market',
     '/trade-routes',
     '/price-checker',
-    '/tutorial'
+    '/tutorial',
+    '/admin'
   ];
 
   const isProtectedRoute = protectedRoutes.some(route => 
-    req.nextUrl.pathname.startsWith(route)
+    request.nextUrl.pathname.startsWith(route)
   );
 
-  // If the route is protected and there is no session, redirect to login IMMEDIATELY
-  if (isProtectedRoute && !session) {
-    const redirectUrl = new URL('/login', req.url);
-    redirectUrl.searchParams.set('next', req.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
+  // If the route is protected and there is no user, redirect to login
+  if (isProtectedRoute && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('next', request.nextUrl.pathname);
+    return NextResponse.redirect(url);
   }
 
-  return res;
+  return response;
 }
 
 export const config = {
@@ -66,6 +87,7 @@ export const config = {
     '/black-market/:path*',
     '/trade-routes/:path*',
     '/price-checker/:path*',
-    '/tutorial/:path*'
+    '/tutorial/:path*',
+    '/admin/:path*'
   ],
 };
