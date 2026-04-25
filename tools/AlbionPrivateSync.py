@@ -6,7 +6,7 @@ import threading
 import re
 
 # --- Configuration ---
-BACKEND_URL = "http://localhost:8000/api/v1/private-sync"
+BACKEND_URL = "https://albion-market-production-d5f2.up.railway.app/api/v1/private-sync"
 ALBION_PORT = 5056 
 
 print("====================================================")

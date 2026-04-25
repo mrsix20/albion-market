@@ -1,6 +1,8 @@
 # aead.dev/minisign v0.3.0
 ## explicit; go 1.21
 aead.dev/minisign
+# fyne.io/fyne/v2 v2.7.3
+## explicit; go 1.19
 # github.com/ao-data/go-githubupdate v0.0.0-20260201170319-c56c2e714903
 ## explicit; go 1.22
 github.com/ao-data/go-githubupdate/updater

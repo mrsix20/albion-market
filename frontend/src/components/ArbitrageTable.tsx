@@ -60,6 +60,18 @@ export default function ArbitrageTable() {
       try {
         const itemIds = materialItems.join(',');
         const response = await fetch(`https://europe.albion-online-data.com/api/v2/stats/prices/${itemIds}?locations=Lymhurst,Bridgewatch,Martlock,Thetford,Fort Sterling,Caerleon`);
+        
+        if (!response.ok) {
+            console.warn("Material prices API throttled or failed");
+            return;
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            console.warn("Material prices API returned non-JSON response");
+            return;
+        }
+
         const data = await response.json();
         
         const prices: Record<string, number> = {};
@@ -144,6 +156,22 @@ export default function ArbitrageTable() {
     if (savedSortConfig) setSortConfig(JSON.parse(savedSortConfig));
 
     setIsMounted(true);
+
+    // Fetch User Session
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+      }
+    };
+    checkUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Debounce effect: Update the actual filters only after user stops typing
@@ -247,11 +275,14 @@ export default function ArbitrageTable() {
         enchantedItems.push(`${item}@4`);
       });
 
-      const data = await getBlackMarketFlips(enchantedItems);
+      const data = await getBlackMarketFlips(enchantedItems, user?.id);
       setOpportunities(data.opportunities);
       setError(null);
     } catch (err) {
-      setError("Failed to connect to API. Make sure the backend is running.");
+      // Don't show error if it's just a session loading state
+      if (user) {
+        setError("Failed to connect to API. Make sure the backend is running.");
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -292,10 +323,14 @@ export default function ArbitrageTable() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
+    if (isMounted && user) {
+      fetchData();
+    }
+    const interval = setInterval(() => {
+      if (isMounted && user) fetchData();
+    }, 60000);
     return () => clearInterval(interval);
-  }, [customItems]);
+  }, [customItems, user, isMounted]);
 
   const requestSort = (key: keyof ArbitrageOpportunity) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -775,10 +810,21 @@ export default function ArbitrageTable() {
                     </div>
                   </td>
                   <td className="px-4 py-4 relative">
-                    <div className="flex flex-col items-center gap-1.5 transition-all">
-                      <div className="text-xl font-bold text-emerald-400 flex items-center justify-center gap-1.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        <span>+{Math.floor(op.profit).toLocaleString()}</span>
-                        <Coins className="w-5 h-5 text-slate-300 drop-shadow-[0_0_8px_rgba(148,163,184,0.4)]" />
+                    <div className="flex flex-col items-center gap-2 transition-all">
+                      <div className="text-xl font-bold text-emerald-400 flex flex-col items-center gap-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {op.profit >= 1000000 ? (
+                          <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/50 rounded-full text-[9px] font-black text-amber-500 uppercase tracking-widest animate-floating animate-glow-gold flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.2)] mb-1">
+                            <Zap className="w-3 h-3 fill-current" />👑 ULTRA DEAL
+                          </span>
+                        ) : op.profit >= 500000 ? (
+                          <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/50 rounded-full text-[9px] font-black text-purple-400 uppercase tracking-widest animate-floating animate-glow-purple flex items-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)] mb-1">
+                            <Zap className="w-3 h-3 fill-current" />✨ SUPER DEAL
+                          </span>
+                        ) : null}
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span>+{Math.floor(op.profit).toLocaleString()}</span>
+                          <Coins className="w-5 h-5 text-slate-300 drop-shadow-[0_0_8px_rgba(148,163,184,0.4)]" />
+                        </div>
                       </div>
                       
                       {isRestricted ? (

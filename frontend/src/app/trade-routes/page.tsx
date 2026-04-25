@@ -2,7 +2,8 @@
 
 import Header from "@/components/Header";
 import { useState, useEffect } from "react";
-import { ArbitrageOpportunity } from "@/lib/api";
+import { getTradeRoutes, ArbitrageOpportunity } from "@/lib/api";
+import { supabase } from "@/lib/supabaseClient";
 import { Ship, ArrowRight, MapPin, TrendingUp, Coins, Clock, Info, ShieldCheck, Zap, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
 export default function TradeRoutesPage() {
@@ -13,6 +14,7 @@ export default function TradeRoutesPage() {
   const [isPremium, setIsPremium] = useState(true);
   const [minRoi, setMinRoi] = useState(5);
   const [minProfit, setMinProfit] = useState(500);
+  const [user, setUser] = useState<any>(null);
 
   const cities = ["All", "Fort Sterling", "Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Caerleon", "Brecilien"];
 
@@ -51,20 +53,13 @@ export default function TradeRoutesPage() {
   const fetchTradeRoutes = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/trade-routes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: transportItems,
-          source_city: sourceCity,
-          destination_city: destCity,
-          tax: taxRate,
-          quality: [1, 2, 3]
-        }),
-      });
-
-      if (!response.ok) throw new Error('Network response was not ok');
-      const data = await response.json();
+      const data = await getTradeRoutes({
+        items: transportItems,
+        source_city: sourceCity,
+        destination_city: destCity,
+        tax: taxRate,
+        quality: [1, 2, 3]
+      }, user?.id);
       
       // Client-side filtering for Min ROI and Min Profit
       const filtered = (data.opportunities || []).filter((opp: any) => 
@@ -98,8 +93,22 @@ export default function TradeRoutesPage() {
     }
   };
   useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+    };
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     fetchTradeRoutes();
-  }, [sourceCity, destCity, isPremium, minRoi, minProfit]);
+  }, [sourceCity, destCity, isPremium, minRoi, minProfit, user]);
 
   const getTimeAgo = (dateString: string) => {
     if (!dateString || dateString.startsWith('0001')) return "N/A";
@@ -302,7 +311,16 @@ export default function TradeRoutesPage() {
                             </div>
                           </td>
                           <td className="px-8 py-6 text-right">
-                            <div className="flex flex-col items-end">
+                            <div className="flex flex-col items-end gap-3">
+                              {opp.profit >= 1000000 ? (
+                                <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/50 rounded-full text-[8px] font-black text-amber-500 uppercase tracking-widest animate-floating animate-glow-gold flex items-center gap-1 shadow-[0_0_15px_rgba(245,158,11,0.2)] mb-1">
+                                  👑 ULTRA
+                                </span>
+                              ) : opp.profit >= 500000 ? (
+                                <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/50 rounded-full text-[8px] font-black text-purple-400 uppercase tracking-widest animate-floating animate-glow-purple flex items-center gap-1 shadow-[0_0_10px_rgba(168,85,247,0.1)] mb-1">
+                                  ✨ SUPER
+                                </span>
+                              ) : null}
                               <span className="font-black text-lg text-emerald-400">+{opp.profit.toLocaleString()}</span>
                               <div className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
                                 <span className="text-[10px] font-black text-emerald-500">{opp.roi_percentage.toFixed(1)}% ROI</span>

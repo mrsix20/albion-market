@@ -1,25 +1,31 @@
-from fastapi import APIRouter, HTTPException
-from typing import List
+from fastapi import APIRouter, HTTPException, Header
+from typing import List, Optional
 from schemas.market import FlipperRequest, FlipperResponse, ArbitrageOpportunity
 from services.aodp_client import fetch_prices
-from services.private_price_service import merge_prices, get_bm_tiers, get_all_bm_tier_item_ids
+from services.private_price_service import merge_prices, get_bm_tiers, get_all_bm_tier_item_ids, get_all_private_item_ids
 from core.albion_math import calculate_profit
 
 router = APIRouter()
 
 @router.post("/flipper", response_model=FlipperResponse)
-async def get_black_market_flips(request: FlipperRequest):
+async def get_black_market_flips(request: FlipperRequest, x_user_id: Optional[str] = Header(None)):
     """
     Find arbitrage opportunities between Royal Cities and the Black Market.
     """
+    user_id = x_user_id or "global"
     # Combine target locations
     all_locations = request.royal_cities + [request.target_city]
     
+    # Expand items list with items the user has actually scanned privately
+    # This allows items outside the DEFAULT_ITEMS to show up if the user scans them.
+    private_item_ids = get_all_private_item_ids(user_id=user_id)
+    combined_items = list(set(request.items + private_item_ids + get_all_bm_tier_item_ids(user_id=user_id)))
+    
     try:
         # Fetch data for all requested items in all locations
-        public_data = await fetch_prices(request.items, all_locations)
-        # Merge with private data
-        raw_data = merge_prices(public_data, request.items, all_locations)
+        public_data = await fetch_prices(combined_items, all_locations)
+        # Merge with private data for this specific user
+        raw_data = merge_prices(public_data, combined_items, all_locations, user_id=user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching data from AODP: {str(e)}")
         
@@ -45,7 +51,7 @@ async def get_black_market_flips(request: FlipperRequest):
         except:
             return None
 
-    def is_fresh(date_str: str, max_hours: int = 6) -> bool:
+    def is_fresh(date_str: str, max_hours: int = 24) -> bool:
         """Returns True if date is within max_hours from now."""
         d = parse_date(date_str)
         if d is None:
@@ -73,8 +79,8 @@ async def get_black_market_flips(request: FlipperRequest):
                 return bp_min, bp_max, bp_max_date
             return 0, 0, bp_max_date
 
-        # Public data: only max is meaningful, check freshness
-        if bp_max > 0 and is_fresh(bp_max_date, max_hours=6):
+        # Public data: only max is meaningful, allow data up to 24 hours old
+        if bp_max > 0 and is_fresh(bp_max_date, max_hours=24):
             return bp_max, bp_max, bp_max_date
 
         return 0, 0, bp_max_date
@@ -105,8 +111,8 @@ async def get_black_market_flips(request: FlipperRequest):
             if not city_data.is_private and not is_fresh(city_date, max_hours=6):
                 continue
 
-            # Sanity check: BM price should not be more than 15x the city price
-            if bm_price_max > city_sell_price * 15 and not city_data.is_private:
+            # Sanity check removed as per user request to allow ultra deals
+            if False: 
                 print(f"[SANITY SKIP] {item_id} Q{quality}: BM={bm_price_max} vs City={city_sell_price} — ratio too high")
                 continue
                 
@@ -118,8 +124,8 @@ async def get_black_market_flips(request: FlipperRequest):
                 direct_sell=True
             )
 
-            # Skip absurd ROI (> 500%) — almost always means bad data
-            if profit_data["roi_percentage"] > 500 and not city_data.is_private:
+            # ROI check removed as per user request
+            if False:
                 print(f"[SANITY SKIP] {item_id} Q{quality}: ROI={profit_data['roi_percentage']:.1f}% — too high")
                 continue
             
@@ -154,14 +160,14 @@ async def get_black_market_flips(request: FlipperRequest):
         if entry.city != "Black Market" and entry.sell_price_min > 0:
             city_sell_map[(entry.item_id, entry.city, entry.quality)] = entry
 
-    tier_item_ids = get_all_bm_tier_item_ids()
+    tier_item_ids = get_all_bm_tier_item_ids(user_id=user_id)
     processed_tier_keys = set()  # track (item_id, quality, price) to avoid duplicates
 
     for (item_id, quality), locations in item_quality_map.items():
         if item_id not in tier_item_ids:
             continue
         
-        tiers = get_bm_tiers(item_id, quality)  # sorted by price desc
+        tiers = get_bm_tiers(item_id, quality, user_id=user_id)  # sorted by price desc
         if not tiers:
             continue
 

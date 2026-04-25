@@ -36,6 +36,9 @@ func (u *httpUploader) sendToIngest(body []byte, topic string, state *albionStat
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	if ConfigGlobal.UserID != "" {
+		req.Header.Set("X-User-ID", ConfigGlobal.UserID)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -47,6 +50,8 @@ func (u *httpUploader) sendToIngest(body []byte, topic string, state *albionStat
 		log.Errorf("Got bad response code: %v", resp.StatusCode)
 		return
 	}
+
+	UpdateGuiStats(1)
 
 	// See: https://stackoverflow.com/questions/17948827/reusing-http-connections-in-golang
 	io.Copy(ioutil.Discard, resp.Body)

@@ -92,6 +92,9 @@ func (u *httpUploaderPow) uploadWithPow(pow Pow, solution string, natsmsg []byte
 	}
 	req, _ := http.NewRequest("POST", fullURL, strings.NewReader(data.Encode()))
 	req.Header.Add("User-Agent", fmt.Sprintf("albiondata-client/%v", version))
+	if ConfigGlobal.UserID != "" {
+		req.Header.Add("X-User-ID", ConfigGlobal.UserID)
+	}
 	resp, err := client.Do(req)
 
 	if err != nil {

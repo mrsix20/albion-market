@@ -35,12 +35,18 @@ export interface ItemPrice {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export async function getBlackMarketFlips(items: string[]): Promise<FlipperResponse> {
+export async function getBlackMarketFlips(items: string[], userId?: string): Promise<FlipperResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (userId) {
+    headers['X-User-ID'] = userId;
+  }
+
   const response = await fetch(`${API_BASE}/api/v1/flipper`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: headers,
     body: JSON.stringify({
       items,
       royal_cities: ["Fort Sterling", "Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Caerleon"],
@@ -50,6 +56,11 @@ export async function getBlackMarketFlips(items: string[]): Promise<FlipperRespo
 
   if (!response.ok) {
     throw new Error('Failed to fetch flips');
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    return { opportunities: [] };
   }
 
   return response.json();
@@ -85,4 +96,31 @@ export async function invalidateDeal(itemId: string, quality: number, city: stri
   if (!response.ok) {
     console.error('Failed to invalidate deal');
   }
+}
+
+export async function getTradeRoutes(params: any, userId?: string): Promise<FlipperResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (userId) {
+    headers['X-User-ID'] = userId;
+  }
+
+  const response = await fetch(`${API_BASE}/api/v1/trade-routes`, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch trade routes');
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    return { opportunities: [] };
+  }
+
+  return response.json();
 }

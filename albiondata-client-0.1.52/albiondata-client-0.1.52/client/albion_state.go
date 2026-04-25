@@ -86,17 +86,17 @@ func (state albionState) GetServer() (int, string) {
 		// west server class c ip range
 		serverID = 1
 		isAlbionIP = true
-		AODataIngestBaseURL = "http://localhost:8000/api/v1/private-sync"
+		AODataIngestBaseURL = "https://albion-market-production-d5f2.up.railway.app/api/v1/private-sync"
 	} else if strings.HasPrefix(state.GameServerIP, "5.45.187.") {
 		// east server class c ip range
 		isAlbionIP = true
 		serverID = 2
-		AODataIngestBaseURL = "http://localhost:8000/api/v1/private-sync"
+		AODataIngestBaseURL = "https://albion-market-production-d5f2.up.railway.app/api/v1/private-sync"
 	} else if strings.HasPrefix(state.GameServerIP, "193.169.238.") {
 		// eu server class c ip range
 		isAlbionIP = true
 		serverID = 3
-		AODataIngestBaseURL = "http://localhost:8000/api/v1/private-sync"
+		AODataIngestBaseURL = "https://albion-market-production-d5f2.up.railway.app/api/v1/private-sync"
 	}
 
 	// if this was a known albion online server ip, then let's log it

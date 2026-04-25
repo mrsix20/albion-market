@@ -541,20 +541,54 @@ export default function ProfilePage() {
                 <h2 className="text-2xl font-black tracking-tight uppercase">Account Configuration</h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-6 max-w-2xl">
+                <div className="space-y-2">
                   <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Registered Email</label>
-                  <div className="w-full bg-slate-950/50 border border-white/5 rounded-none px-6 py-5 text-sm font-bold text-slate-400 flex items-center gap-3">
+                  <div className="w-full bg-slate-950/50 border border-white/5 rounded-none px-6 py-4 text-sm font-bold text-slate-400 flex items-center gap-3">
                     <UserIcon className="w-4 h-4 text-slate-600" />
                     {user.email}
                   </div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Account Created</label>
-                  <div className="w-full bg-slate-950/50 border border-white/5 rounded-none px-6 py-5 text-sm font-bold text-slate-400 flex items-center gap-3">
+                  <div className="w-full bg-slate-950/50 border border-white/5 rounded-none px-6 py-4 text-sm font-bold text-slate-400 flex items-center gap-3">
                     <Award className="w-4 h-4 text-slate-600" />
                     {new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric', day: 'numeric' })}
                   </div>
+                </div>
+                {/* Client Sync ID Field - Vertical Stack */}
+                <div className="space-y-2 pt-2">
+                  <label className="text-[10px] text-amber-500/80 font-black uppercase tracking-widest ml-1 flex items-center gap-2">
+                    Client Sync ID
+                    <span className="px-1.5 py-0.5 bg-amber-500/10 rounded text-[7px] font-bold">REQUIRED FOR CLIENT</span>
+                  </label>
+                  <div className="relative group/id">
+                    <div className="w-full bg-slate-950/50 border border-amber-500/20 group-hover/id:border-amber-500/40 rounded-none px-6 py-4 text-xs font-mono text-amber-500/80 flex items-center justify-between transition-all">
+                      <div className="flex items-center gap-4">
+                        <Zap className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="tracking-wider">{user.id}</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(user.id);
+                          const btn = document.getElementById('copyBtnId');
+                          if (btn) {
+                            const originalHtml = btn.innerHTML;
+                            btn.innerHTML = '<svg class="w-4 h-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                            setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+                          }
+                        }}
+                        id="copyBtnId"
+                        className="p-2 hover:bg-amber-500/10 rounded-lg transition-all"
+                        title="Copy ID"
+                      >
+                        <svg className="w-4 h-4 text-amber-500/40 hover:text-amber-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest mt-2 ml-1 italic">
+                    Paste this ID in your config.yaml to enable Private Live Sync.
+                  </p>
                 </div>
               </div>
             </div>

@@ -69,6 +69,8 @@ type config struct {
 	PrintVersion                   bool
 	UpdateGithubOwner              string
 	UpdateGithubRepo               string
+	UserID                         string
+	NoGUI                          bool
 }
 
 // config global config data
@@ -117,14 +119,17 @@ func (config *config) setupWebsocketFlags() {
 	config.EnableWebsockets = viper.GetBool("EnableWebsockets")
 	config.AllowedWSHosts = viper.GetStringSlice("AllowedWebsocketHosts")
 
-	// // Keeping for local development, but commenting out so it's not live.
-	// // Read update configuration (use defaults if not specified)
-	// if viper.IsSet("UpdateGithubOwner") {
-	// 	config.UpdateGithubOwner = viper.GetString("UpdateGithubOwner")
-	// }
-	// if viper.IsSet("UpdateGithubRepo") {
-	// 	config.UpdateGithubRepo = viper.GetString("UpdateGithubRepo")
-	// }
+	// Read UserID from config file if not already set by flags
+	if config.UserID == "" && viper.IsSet("UserID") {
+		config.UserID = viper.GetString("UserID")
+	}
+
+	if config.UserID != "" {
+		log.Infof("--- [PRIVATE MODE] Connected to User Account: %s ---", config.UserID)
+	} else {
+		log.Info("--- [GLOBAL MODE] Connected to Public Market Hub ---")
+		config.UserID = "global" // Explicitly set to global for clarity
+	}
 }
 
 func (config *config) setupDebugFlags() {
@@ -225,7 +230,7 @@ func (config *config) setupCommonFlags() {
 	flag.StringVar(
 		&config.PublicIngestBaseUrls,
 		"i",
-		"http://localhost:8000/api/v1/private-sync",
+		"https://albion-market-production-d5f2.up.railway.app/api/v1/private-sync",
 		"Base URL to send data to. Default is set to Private Market Hub.",
 	)
 
@@ -241,6 +246,20 @@ func (config *config) setupCommonFlags() {
 		"record",
 		"",
 		"Enable recording commands to a file for debugging later.",
+	)
+
+	flag.StringVar(
+		&config.UserID,
+		"user",
+		"",
+		"Your unique User ID or API Key to sync data to your private account.",
+	)
+
+	flag.BoolVar(
+		&config.NoGUI,
+		"nogui",
+		false,
+		"If specified, the browser GUI will not be opened.",
 	)
 }
 

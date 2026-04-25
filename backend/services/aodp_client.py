@@ -4,8 +4,8 @@ from core.config import settings
 from schemas.market import AODPPriceData
 from cachetools import TTLCache
 
-# Cache for 1 minute, up to 100 entries
-price_cache = TTLCache(maxsize=100, ttl=60)
+# Cache for 5 minutes, up to 1000 entries
+price_cache = TTLCache(maxsize=1000, ttl=300)
 
 async def fetch_prices(items: List[str], locations: Optional[List[str]] = None) -> List[AODPPriceData]:
     """
@@ -13,6 +13,11 @@ async def fetch_prices(items: List[str], locations: Optional[List[str]] = None) 
     """
     if not items:
         return []
+
+    # Generate a cache key based on items and locations
+    cache_key = f"{','.join(sorted(items))}:{','.join(sorted(locations)) if locations else 'all'}"
+    if cache_key in price_cache:
+        return price_cache[cache_key]
 
     # Chunk items to avoid long URLs (40 items per request is safe)
     CHUNK_SIZE = 40
@@ -30,6 +35,12 @@ async def fetch_prices(items: List[str], locations: Optional[List[str]] = None) 
             
             try:
                 response = await client.get(url, params=params)
+                
+                # Check for throttling or other non-JSON responses
+                if response.status_code == 429 or "Throttled" in response.text:
+                    print(f"--- [WARNING] AODP Throttled us! Using partial data. ---")
+                    break
+                
                 response.raise_for_status()
                 data = response.json()
                 all_fetched_data.extend(data)
@@ -37,4 +48,10 @@ async def fetch_prices(items: List[str], locations: Optional[List[str]] = None) 
                 print(f"Error fetching chunk: {e}")
                 continue
 
-    return [AODPPriceData(**item) for item in all_fetched_data]
+    results = [AODPPriceData(**item) for item in all_fetched_data]
+    
+    # Store in cache if we got some results
+    if results:
+        price_cache[cache_key] = results
+        
+    return results
