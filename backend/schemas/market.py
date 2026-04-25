@@ -43,6 +43,7 @@ class FlipperRequest(BaseModel):
     items: List[str]
     royal_cities: Optional[List[str]] = ["Fort Sterling", "Lymhurst", "Bridgewatch", "Martlock", "Thetford"]
     target_city: Optional[str] = "Black Market"
+    has_premium: bool = False
 
 class TradeRouteRequest(BaseModel):
     items: List[str]
