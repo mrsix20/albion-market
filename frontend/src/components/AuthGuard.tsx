@@ -32,8 +32,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
 
-        if (error || (isProtectedRoute && !session)) {
-          if (error) await supabase.auth.signOut();
+        if (isProtectedRoute && !session) {
           setIsAuthorized(false);
           setIsChecking(false);
           return;
