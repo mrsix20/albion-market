@@ -141,10 +141,9 @@ export default function Header() {
       isLive: false 
     },
   ];
-  // --- Render Sections ---
+
   return (
     <>
-      {/* Background Overlay when menu is open */}
       <div 
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] transition-opacity duration-300 ${isMarketOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
         onClick={() => setIsMarketOpen(false)}
@@ -165,7 +164,6 @@ export default function Header() {
             <Link href="/" className="text-sm font-bold text-slate-400 hover:text-white transition-colors">Home</Link>
             <Link href="/tutorial" className="text-sm font-bold text-slate-400 hover:text-white transition-colors">How it Works</Link>
             
-            {/* Market Dropdown Container */}
             <div className="relative h-20 flex items-center" ref={dropdownRef}>
               <button 
                 onMouseEnter={() => setIsMarketOpen(true)}
@@ -176,14 +174,12 @@ export default function Header() {
                 <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isMarketOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Premium Mega Menu */}
               {isMarketOpen && (
                 <div 
                   className="absolute top-full left-1/2 -translate-x-1/2 mt-0 w-[600px] bg-slate-900/95 backdrop-blur-2xl rounded-b-3xl border-x border-b border-white/10 shadow-[0_40px_80px_rgba(0,0,0,0.8)] overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300 z-[99999]"
                   onMouseLeave={() => setIsMarketOpen(false)}
                 >
                   <div className="flex">
-                    {/* Left Side: Main Tools Grid */}
                     <div className="flex-grow p-6">
                       <div className="px-2 mb-6 flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Economic Tools Suite</span>
@@ -238,7 +234,6 @@ export default function Header() {
                       </div>
                     </div>
 
-                    {/* Right Sidebar: Promo/Info */}
                     <div className="w-48 bg-amber-500/5 border-l border-white/5 p-6 flex flex-col justify-between">
                       <div>
                         <h5 className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-4">Elite Membership</h5>
@@ -333,5 +328,3 @@ export default function Header() {
     </>
   );
 }
-   
- 
