@@ -18,16 +18,43 @@ async def get_black_market_flips(request: FlipperRequest, x_user_id: Optional[st
     
     # Expand items list with items the user has actually scanned privately
     # This allows items outside the DEFAULT_ITEMS to show up if the user scans them.
+    # Expand items list with items the user has actually scanned privately
     private_item_ids = get_all_private_item_ids(user_id=user_id)
     combined_items = list(set(request.items + private_item_ids + get_all_bm_tier_item_ids(user_id=user_id)))
     
+    # --- SMART FILTERING OPTIMIZATION ---
+    # Only fetch from AODP the items we DON'T have fresh private data for.
+    # This massively reduces the load on AODP and speeds up the response.
+    from services.private_price_service import _private_store
+    items_to_fetch_publicly = []
+    
+    user_store = _private_store.get(user_id, {})
+    for item_id in combined_items:
+        # If we have private data for this item (any quality) that is less than 30 mins old,
+        # we can skip the public fetch for it to save resources.
+        has_fresh_private = False
+        for q in range(1, 6):
+            p_data = user_store.get((item_id, q))
+            if p_data:
+                # Check freshness (30 mins)
+                from datetime import datetime, timezone
+                last_updated = datetime.fromisoformat(p_data.buy_price_max_date.replace("Z", "+00:00"))
+                if (datetime.now(timezone.utc) - last_updated).total_seconds() < 1800:
+                    has_fresh_private = True
+                    break
+        
+        if not has_fresh_private:
+            items_to_fetch_publicly.append(item_id)
+
     try:
-        # Fetch data for all requested items in all locations
-        public_data = await fetch_prices(combined_items, all_locations)
-        # Merge with private data for this specific user
+        # Fetch ONLY what we don't have privately
+        public_data = await fetch_prices(items_to_fetch_publicly, all_locations)
+        # Merge with private data (this will include the skipped items)
         raw_data = merge_prices(public_data, combined_items, all_locations, user_id=user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching data from AODP: {str(e)}")
+        print(f"Error in smart fetch: {e}")
+        # Fallback to merge even if public fetch failed
+        raw_data = merge_prices([], combined_items, all_locations, user_id=user_id)
         
     # Group data by item_id and quality
     item_quality_map = {}
