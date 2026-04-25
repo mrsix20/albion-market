@@ -39,7 +39,9 @@ export default function Header() {
         const hasActivePro = data.role === 'pro' ? (hasProRole && !isExpired) : hasProRole;
         
         // We'll store this in a local variable for the render check
-        (window as any).is_pro_active = hasActivePro;
+        if (typeof window !== 'undefined') {
+          (window as any).is_pro_active = hasActivePro;
+        }
       } else {
         const metaName = user.user_metadata?.full_name;
         if (metaName) {
