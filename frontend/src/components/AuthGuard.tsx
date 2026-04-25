@@ -1,5 +1,4 @@
 "use client";
-// Branded Security Shield: Identity Verified..
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
