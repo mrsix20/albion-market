@@ -123,7 +123,7 @@ const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Albion Market Hub - Client</title>
+    <title>HAMONESTIC Market Hub - Client</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -139,10 +139,10 @@ const htmlContent = `
     <div class="p-8 flex-grow">
         <div class="flex items-center justify-between mb-12">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center font-black text-slate-900 text-xl shadow-lg">A</div>
+                <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center font-black text-slate-900 text-xl shadow-lg">H</div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Albion<span class="text-amber-500">Market</span></h1>
-                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em]">Data Sync Client v0.1.52</p>
+                    <h1 class="text-2xl font-black tracking-tight">HAMONESTIC<span class="text-amber-500">Market</span></h1>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em]">Data Sync Client v1.0.0</p>
                 </div>
             </div>
             <div id="statusBadge" class="px-3 py-1 bg-slate-900 border border-white/10 rounded-full flex items-center gap-2">
