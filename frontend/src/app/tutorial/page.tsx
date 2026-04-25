@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Play, Pause, Search, TrendingUp, ShieldCheck, HelpCircle, ArrowRight } from 'lucide-react';
+import { Play, Pause, Search, TrendingUp, ShieldCheck, HelpCircle, ArrowRight, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const TutorialPage = () => {
