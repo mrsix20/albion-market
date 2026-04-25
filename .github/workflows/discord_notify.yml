@@ -24,4 +24,4 @@ jobs:
                    "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
                  }]
                }' \
-               ${{ secrets.DISCORD_WEBHOOK }}
+               "${{ secrets.DISCORD_WEBHOOK }}"
