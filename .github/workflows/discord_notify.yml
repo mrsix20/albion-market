@@ -8,20 +8,14 @@ jobs:
   discord-notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Discord Webhook
-        run: |
-          curl -H "Content-Type: application/json" \
-               -d '{
-                 "username": "Albion Market System",
-                 "avatar_url": "https://market.majdpro.com/icon.png",
-                 "embeds": [{
-                   "title": "⚔️ New System Update Applied",
-                   "description": "`${{ github.event.head_commit.message }}`",
-                   "color": 16096779,
-                   "footer": {
-                     "text": "Albion Market System • Automated Feed"
-                   },
-                   "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-                 }]
-               }' \
-               "${{ secrets.DISCORD_WEBHOOK }}"
+      - name: Discord Webhook Action
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          username: "Albion Market System"
+          avatar-url: "https://market.majdpro.com/icon.png"
+          embed-title: "⚔️ New System Update Applied"
+          embed-description: "${{ github.event.head_commit.message }}"
+          embed-color: 16096779
+          embed-footer-text: "Albion Market System • Automated Feed"
+          embed-timestamp: true
