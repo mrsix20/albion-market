@@ -298,7 +298,7 @@ const TutorialPage = () => {
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </a>
               <a
-                href="https://discord.gg/sh4aCcFSGP"
+                href="https://discord.gg/cwDr3dMvJZ"
                 target="_blank"
                 className="px-10 py-4 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500 hover:text-white font-bold rounded-xl transition-all inline-flex items-center gap-2 group w-full md:w-auto justify-center"
               >

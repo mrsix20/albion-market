@@ -310,7 +310,7 @@ export default function Header() {
             ) : (
               <>
                 <Link 
-                  href="https://discord.gg/sh4aCcFSGP" 
+                  href="https://discord.gg/cwDr3dMvJZ" 
                   target="_blank"
                   className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] group"
                 >

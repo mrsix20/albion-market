@@ -18,7 +18,7 @@ export default function Footer() {
             <Link href="/black-market" className="hover:text-amber-500 transition-colors">Market Tools</Link>
             
             <Link 
-              href="https://discord.gg/sh4aCcFSGP" 
+              href="https://discord.gg/cwDr3dMvJZ" 
               target="_blank"
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/5 text-slate-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-all ml-4"
             >
