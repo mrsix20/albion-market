@@ -24,11 +24,9 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith(route)
   );
 
-  // If the route is protected and there is no session, redirect to login
+  // If the route is protected and there is no session, redirect to login IMMEDIATELY
   if (isProtectedRoute && !session) {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = '/login';
-    // Optionally add a 'next' param to redirect back after login
+    const redirectUrl = new URL('/login', req.url);
     redirectUrl.searchParams.set('next', req.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
