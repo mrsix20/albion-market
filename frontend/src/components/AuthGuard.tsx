@@ -12,7 +12,8 @@ const protectedRoutes = [
   '/price-checker',
   '/profile',
   '/checkout',
-  '/admin'
+  '/admin',
+  '/tutorial'
 ];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (isAuthRoute && session) {
+        router.push('/');
+        return;
+      }
+
       setIsAuthorized(true);
       setIsChecking(false);
     };
@@ -46,10 +52,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (!pathname) return;
       
       const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+      const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
 
       if (isProtectedRoute && !session) {
         setIsAuthorized(false);
         setIsChecking(false);
+      } else if (isAuthRoute && session) {
+        router.push('/');
       } else {
         setIsAuthorized(true);
         setIsChecking(false);
@@ -61,7 +70,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const isProtectedRoute = protectedRoutes.some(route => pathname?.startsWith(route));
 
-  // Show a blank screen (or loader) ONLY while initially checking auth
   if (isProtectedRoute && isChecking) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 relative">
@@ -71,18 +79,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If they are not authorized and trying to access a protected route, show the lock screen OVER the children
   if (isProtectedRoute && !isAuthorized) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950">
         <div className="absolute inset-0 bg-[url('/background.png')] bg-cover bg-center z-0 pointer-events-none brightness-[0.2]" />
         
-        {/* Render children but heavily blurred and disabled */}
         <div className="relative z-10 blur-xl opacity-30 pointer-events-none select-none h-screen overflow-hidden">
           {children}
         </div>
         
-        {/* Lock Overlay */}
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-md px-6">
           <div className="bg-slate-900/80 backdrop-blur-2xl border border-white/10 rounded-[40px] p-8 md:p-12 max-w-lg w-full text-center relative overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-500">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500" />
