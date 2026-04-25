@@ -14,8 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Albion Market Analyzer",
-  description: "Advanced tools for the Albion Online economy.",
+  title: "Albion Market Analyzer - Elite Trade Intelligence",
+  description: "Premium market analysis and trade route optimization for the Albion Online economy.",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  }
 };
 
 export default function RootLayout({
