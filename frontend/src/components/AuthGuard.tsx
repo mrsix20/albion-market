@@ -29,21 +29,28 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
       const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
 
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-      if (isProtectedRoute && !session) {
+        if (error || (isProtectedRoute && !session)) {
+          if (error) await supabase.auth.signOut();
+          setIsAuthorized(false);
+          setIsChecking(false);
+          return;
+        }
+
+        if (isAuthRoute && session) {
+          router.push('/');
+          return;
+        }
+
+        setIsAuthorized(true);
+      } catch (err) {
+        console.error("Auth check failed:", err);
         setIsAuthorized(false);
+      } finally {
         setIsChecking(false);
-        return;
       }
-
-      if (isAuthRoute && session) {
-        router.push('/');
-        return;
-      }
-
-      setIsAuthorized(true);
-      setIsChecking(false);
     };
 
     checkAuth();
