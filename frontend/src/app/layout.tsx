@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   title: "Albion Market Analyzer - Elite Trade Intelligence",
   description: "Premium market analysis and trade route optimization for the Albion Online economy.",
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
-    apple: "/icon.png",
+    icon: "/favicon.ico?v=1",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png", // We can add this later if needed
   }
 };
 
