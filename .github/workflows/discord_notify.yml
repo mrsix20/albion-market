@@ -1,0 +1,21 @@
+name: Discord Update Notification
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  discord-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Webhook
+        uses: rjstone/discord-webhook-action@v1
+        with:
+          severity: info
+          details: '⚔️ **New System Update Applied**'
+          description: '`${{ github.event.head_commit.message }}`'
+          color: '#f59e0b'
+          footer: 'Albion Market System • Automated Feed'
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+          username: 'Albion Market System'
+          avatarUrl: 'https://market.majdpro.com/icon.png'
