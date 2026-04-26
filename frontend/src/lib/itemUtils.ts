@@ -1,6 +1,6 @@
 /**
  * Item Utilities for Albion Market
- * Final Name Test: HamoNestic
+ * Identity Verified: HamoNestic
  */
 
 export interface ItemData {
