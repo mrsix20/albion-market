@@ -1,6 +1,6 @@
 /**
  * Item Utilities for Albion Market
- * Author: HamoNestic (Verified)
+ * Final Name Test: HamoNestic
  */
 
 export interface ItemData {
