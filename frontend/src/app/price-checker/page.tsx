@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import { useState, useEffect, useRef } from "react";
 import { getItemPrices, ItemPrice } from "@/lib/api";
 import { Search, Zap, Info, Filter, TrendingUp, TrendingDown, Coins, Clock, MapPin, ExternalLink, AlertCircle, ChevronRight, Hash } from "lucide-react";
+import { getInGameName } from "@/lib/itemUtils";
 
 interface ItemData {
   id: string;
@@ -20,6 +21,7 @@ export default function PriceCheckerPage() {
   const [quality, setQuality] = useState(1);
   const [suggestions, setSuggestions] = useState<ItemData[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [itemMap, setItemMap] = useState<Record<string, any>>({});
   const searchRef = useRef<HTMLDivElement>(null);
 
   const cities = ["Black Market", "Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
@@ -28,7 +30,14 @@ export default function PriceCheckerPage() {
   useEffect(() => {
     fetch('/items.json')
       .then(res => res.json())
-      .then(data => setItems(data))
+      .then(data => {
+        setItems(data);
+        const map: Record<string, any> = {};
+        data.forEach((item: any) => {
+          map[item.id] = item;
+        });
+        setItemMap(map);
+      })
       .catch(err => console.error("Failed to load items database:", err));
   }, []);
 
@@ -54,10 +63,11 @@ export default function PriceCheckerPage() {
     if (searchTerm.length > 1) {
       const query = searchTerm.toLowerCase();
       const filtered = items
-        .filter(item => 
-          item.name.toLowerCase().includes(query) || 
-          item.id.toLowerCase().includes(query)
-        )
+        .filter(item => {
+          const prettyName = getInGameName(item.id, itemMap);
+          return prettyName.toLowerCase().includes(query) || 
+                 item.id.toLowerCase().includes(query);
+        })
         .slice(0, 10); // Show top 10 matches
       setSuggestions(filtered);
     } else {
@@ -84,7 +94,7 @@ export default function PriceCheckerPage() {
 
   const handleSelectItem = (item: ItemData) => {
     setSelectedItem(item);
-    setSearchTerm(item.name);
+    setSearchTerm(getInGameName(item.id, itemMap));
     setSuggestions([]);
     setIsSearchFocused(false);
   };
@@ -162,7 +172,9 @@ export default function PriceCheckerPage() {
                               <img src={`https://render.albiononline.com/v1/item/${item.id}.png?size=64`} className="w-full h-full object-contain scale-125" alt="" />
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-sm font-bold text-white group-hover:text-amber-500">{item.name}</span>
+                              <span className="text-sm font-bold text-white group-hover:text-amber-500">
+                                {getInGameName(item.id, itemMap)}
+                              </span>
                               <span className="text-[9px] text-slate-500 uppercase font-black">{item.id}</span>
                             </div>
                           </div>
@@ -308,7 +320,9 @@ export default function PriceCheckerPage() {
                           className="w-full h-full object-contain scale-[1.2] relative z-10"
                         />
                       </div>
-                      <h4 className="font-black text-2xl text-white mt-6 leading-tight">{selectedItem.name}</h4>
+                      <h4 className="font-black text-2xl text-white mt-6 leading-tight">
+                        {getInGameName(selectedItem.id, itemMap)}
+                      </h4>
                       <div className="flex items-center gap-2 mt-3">
                         {selectedItem.tier && (
                           <span className="px-3 py-1 bg-amber-500 text-slate-950 text-[10px] font-black rounded-full uppercase tracking-widest shadow-[0_0_15px_rgba(245,158,11,0.4)]">

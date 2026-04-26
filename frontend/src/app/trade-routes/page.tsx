@@ -3,6 +3,7 @@
 import Header from "@/components/Header";
 import { useState, useEffect } from "react";
 import { getTradeRoutes, ArbitrageOpportunity } from "@/lib/api";
+import { getInGameName } from "@/lib/itemUtils";
 import { supabase } from "@/lib/supabaseClient";
 import { Ship, ArrowRight, MapPin, TrendingUp, Coins, Clock, Info, ShieldCheck, Zap, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
@@ -15,6 +16,7 @@ export default function TradeRoutesPage() {
   const [minRoi, setMinRoi] = useState(5);
   const [minProfit, setMinProfit] = useState(500);
   const [user, setUser] = useState<any>(null);
+  const [itemMap, setItemMap] = useState<Record<string, string>>({});
 
   const cities = ["All", "Fort Sterling", "Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Caerleon", "Brecilien"];
 
@@ -102,6 +104,21 @@ export default function TradeRoutesPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setUser(session?.user ?? null);
     });
+
+    const fetchItemNames = async () => {
+      try {
+        const response = await fetch('/items.json');
+        const data = await response.json();
+        const map: Record<string, string> = {};
+        data.forEach((item: any) => {
+          map[item.id] = item.name;
+        });
+        setItemMap(map);
+      } catch (err) {
+        console.error('Failed to load item names:', err);
+      }
+    };
+    fetchItemNames();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -280,14 +297,18 @@ export default function TradeRoutesPage() {
                               </div>
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-black text-slate-200 tracking-tight text-base">{opp.item_id.replace(/_/g, ' ')}</span>
+                                  <span className="font-black text-slate-200 tracking-tight text-base">
+                                    {getInGameName(opp.item_id, itemMap)}
+                                  </span>
                                   {opp.is_private && (
                                     <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-[7px] font-black text-amber-500 uppercase tracking-tighter">
                                       Private Sync
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Tier {opp.item_id.split('_')[0].replace('T', '')}</span>
+                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                                  Tier {opp.item_id.split('_')[0].replace('T', '')}
+                                </span>
                               </div>
                             </div>
                           </td>

@@ -115,6 +115,25 @@ export async function invalidateDeal(itemId: string, quality: number, city: stri
   }
 }
 
+export async function clearAllData(userId?: string): Promise<void> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (userId) {
+    headers['X-User-ID'] = userId;
+  }
+
+  const response = await fetch(`${API_BASE}/api/v1/private-sync/clear-all`, {
+    method: 'POST',
+    headers: headers,
+  });
+
+  if (!response.ok) {
+    console.error('Failed to clear all data');
+  }
+}
+
 export async function getTradeRoutes(params: any, userId?: string): Promise<FlipperResponse> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

@@ -1,8 +1,9 @@
 "use client";
 
-import { RefreshCw, Search, Filter, Percent, ChevronRight, Zap, Clock, Coins, Lock, Trash2 } from 'lucide-react';
+import { RefreshCw, Search, Filter, Percent, ChevronRight, Zap, Clock, Coins, Lock, Trash2, Check, CheckCircle2, Copy, AlertTriangle } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
-import { getBlackMarketFlips, ArbitrageOpportunity, invalidateDeal } from '@/lib/api';
+import { getBlackMarketFlips, ArbitrageOpportunity, invalidateDeal, clearAllData } from '@/lib/api';
+import { getInGameName } from '@/lib/itemUtils';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 
@@ -61,20 +62,20 @@ export default function ArbitrageTable() {
       try {
         const itemIds = materialItems.join(',');
         const response = await fetch(`https://europe.albion-online-data.com/api/v2/stats/prices/${itemIds}?locations=Lymhurst,Bridgewatch,Martlock,Thetford,Fort Sterling,Caerleon`);
-        
+
         if (!response.ok) {
-            console.warn("Material prices API throttled or failed");
-            return;
+          console.warn("Material prices API throttled or failed");
+          return;
         }
 
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
-            console.warn("Material prices API returned non-JSON response");
-            return;
+          console.warn("Material prices API returned non-JSON response");
+          return;
         }
 
         const data = await response.json();
-        
+
         const prices: Record<string, number> = {};
         data.forEach((item: any) => {
           // Get the lowest sell price across all cities to find the best deal for materials
@@ -110,7 +111,7 @@ export default function ArbitrageTable() {
     };
     fetchItemNames();
   }, []);
-  
+
   // Filters
   const [minProfit, setMinProfit] = useState(0);
   const [minROI, setMinROI] = useState(0);
@@ -119,9 +120,11 @@ export default function ArbitrageTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [customItems, setCustomItems] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<{ key: keyof ArbitrageOpportunity; direction: 'asc' | 'desc' } | null>({ key: 'sell_price_date', direction: 'desc' });
-  
+
   const [localMinProfit, setLocalMinProfit] = useState<string>("0");
   const [localMinROI, setLocalMinROI] = useState<string>("0");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [isPro, setIsPro] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -162,9 +165,9 @@ export default function ArbitrageTable() {
     const savedCustomItems = localStorage.getItem('customItems');
     const savedSortConfig = localStorage.getItem('sortConfig');
     const savedPremium = localStorage.getItem('hasPremium');
-    
+
     if (savedPremium) setHasPremium(savedPremium === 'true');
-    
+
     if (savedMinProfit) {
       setMinProfit(Number(savedMinProfit));
       setLocalMinProfit(savedMinProfit);
@@ -278,7 +281,7 @@ export default function ArbitrageTable() {
       const past = new Date(dateString);
       const diffMs = now.getTime() - past.getTime();
       const diffMins = Math.floor(diffMs / 60000);
-      
+
       if (diffMins < 1) return "Just now";
       if (diffMins < 60) return `${diffMins}m ago`;
       const diffHours = Math.floor(diffMins / 60);
@@ -290,29 +293,14 @@ export default function ArbitrageTable() {
   };
 
   const handleClearData = async () => {
-    if (!window.confirm("Are you sure you want to delete ALL private market data? This cannot be undone.")) {
-      return;
-    }
-
-    setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/flipper/clear`, {
-        method: 'DELETE',
-        headers: {
-          'X-User-ID': user?.id || 'global'
-        }
-      });
-      
-      if (response.ok) {
-        setOpportunities([]);
-        alert("All private data has been cleared.");
-        fetchData(); // Refresh to show only public data
-      } else {
-        alert("Failed to clear data.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error clearing data.");
+      setLoading(true);
+      await clearAllData(user?.id);
+      setOpportunities([]);
+      setHiddenDeals(new Set());
+      setShowClearConfirm(false);
+    } catch (error) {
+      console.error('Failed to clear data:', error);
     } finally {
       setLoading(false);
     }
@@ -323,7 +311,7 @@ export default function ArbitrageTable() {
       setLoading(true);
       const baseItems = customItems.length > 0 ? customItems : DEFAULT_ITEMS;
       const enchantedItems: string[] = [];
-      
+
       baseItems.forEach(item => {
         enchantedItems.push(item);
         enchantedItems.push(`${item}@1`);
@@ -401,7 +389,7 @@ export default function ArbitrageTable() {
   const sortedOps = [...opportunities].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
-    
+
     const valA = a[key] ?? 0;
     const valB = b[key] ?? 0;
 
@@ -435,10 +423,10 @@ export default function ArbitrageTable() {
           <div className="absolute inset-0 border border-amber-500/20 rounded-full animate-[ping_3s_linear_infinite]"></div>
           <div className="absolute inset-4 border border-amber-500/10 rounded-full animate-[ping_3s_linear_infinite_0.5s]"></div>
           <div className="absolute inset-8 border border-amber-500/5 rounded-full animate-[ping_3s_linear_infinite_1s]"></div>
-          
+
           {/* Main Radar Circle */}
           <div className="absolute inset-0 border-2 border-slate-800 rounded-full bg-slate-900/50 backdrop-blur-sm shadow-2xl"></div>
-          
+
           {/* Rotating Scanner Beam */}
           <div className="absolute inset-0 rounded-full overflow-hidden">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-1 bg-gradient-to-r from-transparent via-amber-500/60 to-transparent rotate-0 animate-[spin_4s_linear_infinite]"></div>
@@ -446,7 +434,7 @@ export default function ArbitrageTable() {
 
           {/* Center Target Point */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-amber-500 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.8)] animate-pulse"></div>
-          
+
           {/* Random "Deal" Detected Dots */}
           <div className="absolute top-1/4 left-1/4 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
           <div className="absolute bottom-1/3 right-1/4 w-1 h-1 bg-amber-400 rounded-full animate-pulse [animation-delay:0.7s]"></div>
@@ -456,14 +444,14 @@ export default function ArbitrageTable() {
         {/* Status Messages */}
         <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
-             <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0s]"></div>
-                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
-             </div>
-             <p className="text-amber-500 font-black text-sm uppercase tracking-[0.3em] animate-pulse">
-               Scanning Royal Markets
-             </p>
+            <div className="flex gap-1">
+              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0s]"></div>
+              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            </div>
+            <p className="text-amber-500 font-black text-sm uppercase tracking-[0.3em] animate-pulse">
+              Scanning Royal Markets
+            </p>
           </div>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
             Filtering high-profit arbitrage opportunities...
@@ -477,7 +465,7 @@ export default function ArbitrageTable() {
     return (
       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
         <p className="text-red-400 font-medium">{error}</p>
-        <button 
+        <button
           onClick={fetchData}
           className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors"
         >
@@ -487,70 +475,72 @@ export default function ArbitrageTable() {
     );
   }
 
-  const getInGameName = (itemId: string) => {
-    const baseId = itemId.split('@')[0];
-    if (itemMap[baseId]) return itemMap[baseId];
-
-    const parts = baseId.split('_');
-    const tier = parts[0]; 
-    const tierNames: Record<string, string> = {
-      'T1': "Beginner's", 'T2': "Novice's", 'T3': "Journeyman's",
-      'T4': "Adept's", 'T5': "Expert's", 'T6': "Master's",
-      'T7': "Grandmaster's", 'T8': "Elder's"
-    };
-
-    const typeNames: Record<string, string> = {
-      'ARMOR': 'Armor', 'HEAD': 'Helmet', 'SHOES': 'Workboots',
-      'BAG': 'Bag', 'CAPE': 'Cape', 'MAIN_SPEAR': 'Spear',
-      'MAIN_AXE': 'Battleaxe', 'MAIN_SWORD': 'Broadsword',
-      '2H_BOW': 'Bow', 'MAIN_FIRESTAFF': 'Fire Staff',
-      'MOUNT_HORSE': 'Riding Horse', 'MOUNT_OX': 'Transport Ox'
-    };
-
-    let name = "";
-    const remainingParts = parts.slice(1).join('_');
-    const typeKey = Object.keys(typeNames).find(key => remainingParts.includes(key));
-
-    if (tierNames[tier] && typeKey) {
-      name = `${tierNames[tier]} ${typeNames[typeKey]}`;
-    } else {
-      name = remainingParts.replace(/_/g, ' ');
-    }
-    return `${tierNames[tier] || tier} ${name}`;
-  };
-
-  const copyToClipboard = (text: string) => {
+  const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
 
   return (
     <div className="overflow-hidden glass rounded-2xl border border-white/10 shadow-2xl">
-      <div className="px-6 py-6 border-b border-white/10 flex flex-wrap items-end gap-6 bg-white/5">
-        <form onSubmit={handleSearch} className="flex flex-col gap-2">
-          <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <Search className="w-3 h-3" /> Quick Search
-          </label>
-          <div className="flex items-center gap-2">
-            <div className="relative group">
-              <input 
-                type="text" 
-                placeholder="e.g. T6_MAIN_SPEAR" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-64 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl placeholder:text-slate-700 font-medium"
-              />
-              <div className="absolute inset-0 rounded-xl bg-amber-500/5 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity"></div>
+      <div className="px-6 py-6 border-b border-white/10 flex flex-wrap items-start gap-x-8 gap-y-6 bg-white/[0.02]">
+        <div className="flex flex-col gap-3">
+          <form onSubmit={handleSearch} className="flex flex-col gap-2">
+            <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+              <Search className="w-3 h-3" /> Quick Search
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="relative group">
+                <input
+                  type="text"
+                  placeholder="e.g. T6_MAIN_SPEAR"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-64 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl placeholder:text-slate-700 font-medium h-[42px]"
+                />
+                <div className="absolute inset-0 rounded-xl bg-amber-500/5 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity"></div>
+              </div>
+              <button type="submit" className="px-5 py-2.5 bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider hover:brightness-110 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 flex items-center gap-2 shadow-lg h-[42px]">
+                <Zap className="w-3.5 h-3.5" />
+                Search
+              </button>
             </div>
-            <button type="submit" className="px-5 py-2.5 bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider hover:brightness-110 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 flex items-center gap-2 shadow-lg">
-              <Zap className="w-3.5 h-3.5" />
-              Search
-            </button>
+          </form>
+
+          <div className="ml-1 mt-2 flex items-center">
+            {!showClearConfirm ? (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                disabled={loading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/5 border border-rose-500/10 text-rose-500/50 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg font-black uppercase tracking-widest text-[9px] transition-all disabled:opacity-50"
+              >
+                <Trash2 className="w-3 h-3" />
+                Clear All Scanned Data
+              </button>
+            ) : (
+              <div className="flex items-center gap-3 bg-rose-950/40 border border-rose-500/20 px-3 py-1 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300 shadow-xl">
+                <span className="text-[9px] font-black uppercase text-rose-400 flex items-center gap-1.5 whitespace-nowrap">
+                  <AlertTriangle className="w-3 h-3" /> Wipe All Data?
+                </span>
+                <div className="flex items-center gap-2 border-l border-white/10 pl-3">
+                  <button
+                    onClick={handleClearData}
+                    className="px-2.5 py-1 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-400 transition-all active:scale-95 whitespace-nowrap"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setShowClearConfirm(false)}
+                    className="px-2.5 py-1 bg-white/5 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </form>
+        </div>
 
         <div className="h-12 w-px bg-white/5 mx-2 hidden lg:block mb-1"></div>
 
@@ -559,8 +549,8 @@ export default function ArbitrageTable() {
             <Filter className="w-3 h-3" /> Tier Filter
           </label>
           <div className="relative group">
-            <select 
-              value={selectedTier} 
+            <select
+              value={selectedTier}
               onChange={(e) => setSelectedTier(e.target.value)}
               className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer min-w-[140px] font-medium pr-10"
             >
@@ -579,23 +569,22 @@ export default function ArbitrageTable() {
 
         <div className="flex flex-col gap-2">
           <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" /> 
+            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
             Location
           </label>
           <div className="relative group">
-            <select 
-              value={selectedCity} 
+            <select
+              value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className={`bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer min-w-[140px] font-black pr-10 hover:bg-slate-900 ${
-                selectedCity === 'Thetford' ? 'text-purple-400' :
-                selectedCity === 'Fort Sterling' ? 'text-blue-200' :
-                selectedCity === 'Lymhurst' ? 'text-emerald-400' :
-                selectedCity === 'Bridgewatch' ? 'text-amber-400' :
-                selectedCity === 'Martlock' ? 'text-blue-400' :
-                selectedCity === 'Caerleon' ? 'text-red-400' :
-                selectedCity === 'Brecilien' ? 'text-slate-100' :
-                'text-slate-200'
-              }`}
+              className={`bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer min-w-[140px] font-black pr-10 hover:bg-slate-900 ${selectedCity === 'Thetford' ? 'text-purple-400' :
+                  selectedCity === 'Fort Sterling' ? 'text-blue-200' :
+                    selectedCity === 'Lymhurst' ? 'text-emerald-400' :
+                      selectedCity === 'Bridgewatch' ? 'text-amber-400' :
+                        selectedCity === 'Martlock' ? 'text-blue-400' :
+                          selectedCity === 'Caerleon' ? 'text-red-400' :
+                            selectedCity === 'Brecilien' ? 'text-slate-100' :
+                              'text-slate-200'
+                }`}
             >
               <option value="All" className="text-slate-200 bg-slate-950 font-bold">All Cities</option>
               <option value="Thetford" className="text-purple-400 bg-slate-950 font-bold">Thetford</option>
@@ -614,13 +603,13 @@ export default function ArbitrageTable() {
 
         <div className="flex flex-col gap-2">
           <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <Coins className="w-3.5 h-3.5 text-slate-400" /> 
+            <Coins className="w-3.5 h-3.5 text-slate-400" />
             Min Profit
           </label>
           <div className="relative group">
-            <input 
-              type="number" 
-              value={localMinProfit} 
+            <input
+              type="number"
+              value={localMinProfit}
               onChange={(e) => setLocalMinProfit(e.target.value)}
               className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-36 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-medium pr-10"
             />
@@ -635,9 +624,9 @@ export default function ArbitrageTable() {
             <Percent className="w-3 h-3" /> Min ROI
           </label>
           <div className="relative group">
-            <input 
-              type="number" 
-              value={localMinROI} 
+            <input
+              type="number"
+              value={localMinROI}
               onChange={(e) => setLocalMinROI(e.target.value)}
               className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-28 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-medium pr-8"
             />
@@ -647,57 +636,50 @@ export default function ArbitrageTable() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <Zap className={`w-3.5 h-3.5 ${hasPremium ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}`} /> 
-            Premium
-          </label>
-          <button 
-            onClick={() => setHasPremium(!hasPremium)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${
-              hasPremium 
-                ? 'bg-amber-500/20 border-amber-500/40 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
-                : 'bg-slate-950 border-white/5 text-slate-500 hover:border-white/10'
-            }`}
-          >
-            <div className={`w-3 h-3 rounded-full transition-all ${hasPremium ? 'bg-amber-500 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 'bg-slate-800'}`} />
-            {hasPremium ? 'ACTIVE (4% TAX)' : 'INACTIVE (8% TAX)'}
-          </button>
-        </div>
+        <div className="flex flex-col gap-3 ml-auto min-w-[320px]">
+          {/* Top Actions - Centered Row */}
+          <div className="flex items-start gap-4 justify-center">
+            <div className="flex flex-col gap-1.5 items-center">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">Premium Status</label>
+              <button
+                onClick={() => setHasPremium(!hasPremium)}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border h-[38px] min-w-[140px] ${hasPremium
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-500'
+                    : 'bg-slate-950 border-white/5 text-slate-500 hover:border-white/10'
+                  }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${hasPremium ? 'bg-amber-500 animate-pulse' : 'bg-slate-800'}`} />
+                {hasPremium ? 'ACTIVE (4%)' : 'INACTIVE (8%)'}
+              </button>
+            </div>
 
-        <div className="flex items-center mb-1">
-          <button 
-            onClick={resetFilters}
-            className="flex items-center gap-2 px-6 py-2.5 bg-rose-500/5 border border-rose-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all group shadow-lg"
-          >
-            <RefreshCw className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
-            Reset Filters
-          </button>
-        </div>
+            <div className="flex flex-col gap-1.5 items-center">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">Filters</label>
+              <button
+                onClick={resetFilters}
+                className="flex items-center justify-center gap-2 px-5 py-2 bg-rose-500/5 border border-rose-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all group h-[38px] min-w-[110px]"
+              >
+                <RefreshCw className="w-3 h-3 group-hover:-rotate-180 transition-transform" />
+                Reset
+              </button>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-3 ml-auto mb-1">
-          <button 
-            onClick={fetchData}
-            disabled={loading}
-            className={`flex items-center gap-2 px-6 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-500 hover:bg-amber-500/20 transition-all group shadow-lg ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-            {loading ? 'Refreshing...' : 'Refresh Data'}
-          </button>
+          {/* Bottom Actions - Centered Row */}
+          <div className="flex items-center gap-3 justify-center pt-2 border-t border-white/5">
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className={`flex items-center justify-center gap-2 px-6 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-500 hover:bg-amber-500/20 transition-all group h-[38px] min-w-[150px] ${loading ? 'opacity-50' : ''}`}
+            >
+              <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform'}`} />
+              {loading ? 'Syncing...' : 'Force Refresh'}
+            </button>
 
-          <button 
-            onClick={handleClearData}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/20 transition-all group shadow-lg"
-            title="Wipe all scanned data"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Clear All Data
-          </button>
-          
-          <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 bg-slate-950/50 px-5 py-2.5 rounded-xl border border-white/5 shadow-xl hidden md:flex">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.6)]"></span>
-            Live (AODP)
+            <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-950/50 px-5 py-2 rounded-xl border border-white/5 h-[38px] min-w-[120px]">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.4)]"></span>
+              Live (AODP)
+            </div>
           </div>
         </div>
       </div>
@@ -732,7 +714,7 @@ export default function ArbitrageTable() {
             {filteredOps.map((op, idx) => {
               const isEnchanted = op.item_id.includes('@');
               const enchantLevel = isEnchanted ? op.item_id.split('@')[1] : '0';
-              const inGameName = getInGameName(op.item_id);
+              const inGameName = getInGameName(op.item_id, itemMap);
               const isRestricted = !isPro && isProDeal(op);
               const isPrivate = (op as any).is_private;
 
@@ -760,333 +742,337 @@ export default function ArbitrageTable() {
 
               return (
                 <React.Fragment key={`${op.item_id}-${op.quality}-${idx}`}>
-                  <tr 
+                  <tr
                     className={`hover:bg-white/[0.04] transition-all group relative ${isRestricted ? 'bg-amber-500/[0.015]' : ''} ${isPrivate ? 'bg-amber-500/[0.03] border-l-[3px] border-l-amber-500 shadow-[inset_0_0_30px_rgba(245,158,11,0.05)]' : 'border-l-[3px] border-l-transparent'} ${expandedRow === `${op.item_id}-${op.quality}-${idx}` ? 'bg-purple-500/[0.02] ring-1 ring-inset ring-purple-500/20' : ''}`}
                   >
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-5">
-                      <div className="relative">
-                        <div className={`w-20 h-20 bg-slate-900/50 rounded-xl flex items-center justify-center border ${op.quality === 5 ? 'border-[#fbbf24]' : 'border-white/10'} group-hover:border-amber-500/30 transition-all p-0 relative ${isPrivate ? 'shadow-[0_0_20px_rgba(245,158,11,0.3)] border-amber-500/50' : enchantGlows[enchantLevel] || 'shadow-xl'} overflow-hidden`}>
-                          <img 
-                            src={`https://render.albiononline.com/v1/item/${op.item_id}.png?quality=${op.quality}`} 
-                            alt={op.item_id}
-                            className={`w-full h-full object-cover relative z-10 scale-[1.15] transition-all ${isRestricted ? 'blur-lg opacity-20 grayscale' : ''}`}
-                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://render.albiononline.com/v1/item/T1_TRASH.png'; }}
-                          />
-                          {isRestricted && (
-                            <div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-950/20">
-                              <div className="w-10 h-10 bg-amber-500/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                                <Lock className="w-5 h-5 text-amber-500" />
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-5">
+                        <div className="relative">
+                          <div className={`w-20 h-20 bg-slate-900/50 rounded-xl flex items-center justify-center border ${op.quality === 5 ? 'border-[#fbbf24]' : 'border-white/10'} group-hover:border-amber-500/30 transition-all p-0 relative ${isPrivate ? 'shadow-[0_0_20px_rgba(245,158,11,0.3)] border-amber-500/50' : enchantGlows[enchantLevel] || 'shadow-xl'} overflow-hidden`}>
+                            <img
+                              src={`https://render.albiononline.com/v1/item/${op.item_id}.png?quality=${op.quality}`}
+                              alt={inGameName}
+                              className={`w-full h-full object-cover relative z-10 scale-[1.15] transition-all ${isRestricted ? 'blur-lg opacity-20 grayscale' : ''}`}
+                              onError={(e) => { (e.target as HTMLImageElement).src = 'https://render.albiononline.com/v1/item/T1_TRASH.png'; }}
+                            />
+                            {isRestricted && (
+                              <div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-950/20">
+                                <div className="w-10 h-10 bg-amber-500/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                                  <Lock className="w-5 h-5 text-amber-500" />
+                                </div>
                               </div>
+                            )}
+                          </div>
+                          {isEnchanted && !isRestricted && (
+                            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1 z-30 drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">
+                              {[...Array(Number(enchantLevel))].map((_, i) => (
+                                <div key={i} className={`w-2.5 h-2.5 rotate-45 rounded-[1px] border-[1.5px] border-black/90 ${enchantColors[enchantLevel]} shadow-[0_0_8px_inherit]`}></div>
+                              ))}
                             </div>
                           )}
                         </div>
-                        {isEnchanted && !isRestricted && (
-                          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1 z-30 drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">
-                            {[...Array(Number(enchantLevel))].map((_, i) => (
-                              <div key={i} className={`w-2.5 h-2.5 rotate-45 rounded-[1px] border-[1.5px] border-black/90 ${enchantColors[enchantLevel]} shadow-[0_0_8px_inherit]`}></div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
 
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <div className={`font-semibold text-base tracking-tight transition-colors flex items-center gap-1.5 ${isRestricted ? 'text-amber-500/40 select-none' : isPrivate ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-slate-100 group-hover:text-amber-400'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
-                            {isRestricted ? `TIER ${op.item_id.charAt(1)} PREMIUM ITEM` : inGameName}
-                            {!isRestricted && isEnchanted && <span className="text-amber-500/80">.{enchantLevel}</span>}
-                            {isRestricted && (
-                              <span className="px-1.5 py-0.5 bg-amber-500 text-slate-950 text-[8px] font-black rounded uppercase tracking-tighter shadow-[0_0_10px_rgba(245,158,11,0.4)]">Pro Only</span>
-                            )}
-                          </div>
-                          {!isRestricted && (
-                            <button 
-                              onClick={() => copyToClipboard(inGameName)}
-                              className="opacity-0 group-hover:opacity-100 p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-                              title="Copy Name"
-                            >
-                              <svg className="w-3.5 h-3.5 text-slate-400 hover:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {isPrivate && !isRestricted && (
-                            <span className="px-1.5 py-0.5 bg-gradient-to-r from-amber-400 to-amber-600 text-slate-950 text-[8px] font-black rounded uppercase tracking-widest shadow-[0_0_10px_rgba(245,158,11,0.5)] flex items-center gap-0.5">
-                              <Zap className="w-2 h-2 fill-current" />
-                              LIVE SYNC
-                            </span>
-                          )}
-                          <span 
-                            className={`inline-block text-[10px] font-black px-2 py-0.5 rounded tracking-wider uppercase ${isRestricted ? 'bg-amber-500/5 text-amber-500/30 border border-amber-500/10' : ''}`}
-                            style={!isRestricted ? {
-                              ...(op.quality === 5 ? { border: '1px solid #fbbf24', color: '#fbbf24', backgroundColor: 'transparent' } :
-                                op.quality === 4 ? { border: '1px solid #ffffff', color: '#ffffff', backgroundColor: 'transparent' } :
-                                op.quality === 3 ? { border: 'none', color: '#fdba74', backgroundColor: 'rgba(251,146,60,0.1)' } :
-                                op.quality === 2 ? { border: 'none', color: '#7dd3fc', backgroundColor: 'rgba(125,211,252,0.05)' } :
-                                { border: 'none', color: '#94a3b8', backgroundColor: 'rgba(30,41,59,0.5)' })
-                            } : {}}
-                          >
-                            {isRestricted ? 'LOCKED CONTENT' : (op.quality === 1 ? 'NORMAL' : op.quality === 2 ? 'GOOD' : op.quality === 3 ? 'OUTSTANDING' : op.quality === 4 ? 'EXCELLENT' : 'MASTERPIECE')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className={`flex flex-col gap-1 items-center transition-all ${isRestricted ? 'opacity-20 grayscale' : ''}`}>
-                      <span className={`px-3 py-1 rounded-md text-[10px] font-black border uppercase tracking-[0.1em] shadow-sm min-w-[95px] text-center ${cityStyles[op.buy_from_city] || 'text-slate-400 border-white/10 bg-slate-900'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        {op.buy_from_city}
-                      </span>
-                      <span className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em]">City Market</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className={`text-base font-bold transition-all flex items-center justify-center gap-1.5 ${isRestricted ? 'opacity-30' : 'text-slate-200'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {isRestricted ? (
-                        <Lock className="w-3 h-3 text-amber-500/50" />
-                      ) : (
-                        <>
-                          <span>{Math.floor(op.buy_price).toLocaleString()}</span>
-                          <Coins className="w-4 h-4 text-slate-400" />
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className={`text-base font-bold transition-all flex flex-col items-center gap-1 ${isRestricted ? 'opacity-30' : 'text-slate-200'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      <div className="flex items-center gap-1 flex-wrap justify-center">
-                        {isRestricted ? (
-                          <Lock className="w-3 h-3 text-amber-500/50" />
-                        ) : (
-                          <>
-                            <span>{Math.floor(op.sell_price).toLocaleString()}</span>
-                            <Coins className="w-3.5 h-3.5 text-slate-400" />
-                          </>
-                        )}
-                      </div>
-                      {/* Show max price if there's a better order above the bulk price */}
-                      {!isRestricted && op.sell_price_max && op.sell_price_max > op.sell_price && (
-                        <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-black mt-0.5" title="Some orders fill at higher price">
-                          <span className="text-slate-500">↑ best:</span>
-                          <span>{Math.floor(op.sell_price_max).toLocaleString()}</span>
-                        </div>
-                      )}
-                      {!isRestricted && op.demand !== undefined && op.demand > 0 && (
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded border font-black text-[8px] uppercase tracking-wider mt-0.5
-                          ${op.demand >= 10 
-                            ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' 
-                            : op.demand >= 5 
-                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                              : 'bg-slate-800/80 border-white/10 text-slate-400'
-                          }`}
-                          title="Total items the Black Market wants to buy"
-                        >
-                          <svg className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                          <span>Wants <b>{op.demand}</b> pcs</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 relative">
-                    <div className="flex flex-col items-center gap-2 transition-all">
-                      <div className="text-xl font-bold text-emerald-400 flex flex-col items-center gap-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        {op.profit >= 1000000 ? (
-                          <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/50 rounded-full text-[9px] font-black text-amber-500 uppercase tracking-widest animate-floating animate-glow-gold flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.2)] mb-1">
-                            <Zap className="w-3 h-3 fill-current" />👑 ULTRA DEAL
-                          </span>
-                        ) : op.profit >= 500000 ? (
-                          <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/50 rounded-full text-[9px] font-black text-purple-400 uppercase tracking-widest animate-floating animate-glow-purple flex items-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)] mb-1">
-                            <Zap className="w-3 h-3 fill-current" />✨ SUPER DEAL
-                          </span>
-                        ) : null}
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span>+{Math.floor(op.profit).toLocaleString()}</span>
-                          <Coins className="w-5 h-5 text-slate-300 drop-shadow-[0_0_8px_rgba(148,163,184,0.4)]" />
-                        </div>
-                      </div>
-                      
-                      {isRestricted ? (
-                        <Link href="/pricing" className="relative group px-4 py-1.5 bg-gradient-to-r from-amber-400 to-amber-600 text-slate-950 text-[9px] font-black rounded-lg shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-amber-500/40 transition-all overflow-hidden uppercase tracking-wider mt-1">
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-shine" />
-                          <span className="relative flex items-center gap-1.5">
-                            <Zap className="w-2.5 h-2.5 fill-current" />
-                            Unlock Pro
-                          </span>
-                        </Link>
-                      ) : (
-                        <div className="flex items-center gap-2 px-2 py-0.5 bg-amber-500/5 rounded border border-amber-500/10">
-                          <span className="text-[9px] text-amber-500/70 font-black">TOTAL:</span>
-                          <span className="text-[10px] text-amber-500 font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {Math.floor(op.profit * (op.demand || 1)).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className={`flex flex-col items-center gap-2 transition-all ${isRestricted ? 'blur-md opacity-20' : ''}`}>
-                      <div className="flex items-center gap-2">
-                        <div className={`text-xl font-bold ${op.roi_percentage >= 30 ? 'text-amber-500' : op.roi_percentage >= 15 ? 'text-emerald-400' : 'text-slate-400'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          {op.roi_percentage.toFixed(1)}%
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap justify-center gap-1 max-w-[120px]">
-                        {op.demand !== undefined && op.demand >= 10 ? (
-                          <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[7px] font-black uppercase rounded-sm border border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.1)]">Bulk</span>
-                        ) : null}
-                        {op.roi_percentage >= 40 ? (
-                          <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[7px] font-black uppercase rounded-sm border border-emerald-500/20">Yield</span>
-                        ) : null}
-                        {op.item_id.includes('@') ? (
-                          <span 
-                            onClick={() => setExpandedRow(expandedRow === `${op.item_id}-${op.quality}-${idx}` ? null : `${op.item_id}-${op.quality}-${idx}`)}
-                            className="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 text-[7px] font-black uppercase rounded-sm border border-purple-500/20 cursor-pointer hover:bg-purple-500/20 hover:border-purple-500/40 transition-all select-none"
-                            title="Click to see enchantment recipe"
-                          >Enchant ▾</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className={`flex flex-col items-center gap-3 transition-all ${isRestricted ? 'blur-md select-none opacity-20' : ''}`}>
-                      {(() => {
-                        const getDataStatus = (dateString: string) => {
-                          const date = new Date(dateString);
-                          const now = new Date();
-                          const diff = now.getTime() - date.getTime();
-                          const mins = Math.floor(diff / 60000);
-                          if (mins < 15) return 'fresh';
-                          if (mins > 60) return 'stale';
-                          return 'normal';
-                        };
-                        const buyStatus = getDataStatus(op.buy_price_date);
-                        const sellStatus = getDataStatus(op.sell_price_date);
-                        const isLive = buyStatus === 'fresh' && sellStatus === 'fresh';
-                        const isHighRisk = buyStatus === 'stale' || sellStatus === 'stale';
-                        return (
-                          <>
-                            <div className="flex items-center justify-center">
-                              {isLive ? (
-                                <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
-                                  <Zap className="w-2.5 h-2.5" />
-                                  LIVE
-                                </span>
-                              ) : isHighRisk ? (
-                                <span className="flex items-center gap-1 text-[10px] font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                                  <Clock className="w-2.5 h-2.5 text-rose-500" />
-                                  RISKY
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-[10px] font-black text-amber-500/60 bg-amber-500/5 px-2 py-0.5 rounded-full border border-amber-500/10">
-                                  <Clock className="w-2.5 h-2.5" />
-                                  STABLE
-                                </span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className={`font-semibold text-base tracking-tight transition-colors flex items-center gap-1.5 ${isRestricted ? 'text-amber-500/40 select-none' : isPrivate ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-slate-100 group-hover:text-amber-400'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                              {isRestricted ? `TIER ${op.item_id.charAt(1)} PREMIUM ITEM` : inGameName}
+                              {!isRestricted && isEnchanted && <span className="text-amber-500/80">.{enchantLevel}</span>}
+                              {isRestricted && (
+                                <span className="px-1.5 py-0.5 bg-amber-500 text-slate-950 text-[8px] font-black rounded uppercase tracking-tighter shadow-[0_0_10px_rgba(245,158,11,0.4)]">Pro Only</span>
                               )}
                             </div>
-                            <div className="text-[10px] font-black text-slate-500 text-center space-y-0.5 uppercase tracking-tight">
-                              <div className="flex justify-center gap-1.5">
-                                <span className="opacity-40">B:</span> 
-                                <span className={buyStatus === 'fresh' ? 'text-emerald-400' : buyStatus === 'stale' ? 'text-rose-400' : 'text-slate-400'}>{getTimeAgo(op.buy_price_date)}</span>
-                              </div>
-                              <div className="flex justify-center gap-1.5">
-                                <span className="opacity-40">S:</span> 
-                                <span className={sellStatus === 'fresh' ? 'text-emerald-400' : sellStatus === 'stale' ? 'text-rose-400' : 'text-slate-400'}>{getTimeAgo(op.sell_price_date)}</span>
-                              </div>
-                            </div>
-
                             {!isRestricted && (
-                              <div className="flex items-center gap-2 mt-3 w-full border-t border-white/5 pt-3">
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); hideDeal(op); }}
-                                  className="flex-1 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/50 rounded flex items-center justify-center transition-all group"
-                                  title="Mark as Stolen (Hide)"
-                                >
-                                  <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); hideDeal(op); }}
-                                  className="flex-1 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/50 rounded flex items-center justify-center transition-all group"
-                                  title="I Won It! (Hide)"
-                                >
-                                  <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => handleCopy(inGameName, op.item_id)}
+                                className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all ${copiedId === op.item_id ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-amber-400'}`}
+                                title="Copy Name"
+                              >
+                                {copiedId === op.item_id ? (
+                                  <Check className="w-3.5 h-3.5 animate-in zoom-in duration-200" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
                             )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </td>
-                </tr>
-                {/* Enchantment Recipe Panel */}
-                {expandedRow === `${op.item_id}-${op.quality}-${idx}` && isEnchanted && (
-                  <tr className="bg-purple-500/[0.03] animate-in fade-in slide-in-from-top-2">
-                    <td colSpan={7} className="px-8 py-6 border-b border-purple-500/20">
-                      <div className="flex items-start gap-12">
-                        <div className="flex flex-col gap-3">
-                          <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em] flex items-center gap-2">
-                            <Zap className="w-3 h-3" /> Enchantment Recipe
-                          </h4>
-                          <div className="flex items-center gap-6">
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-500 font-bold uppercase mb-1">Base Item (.0)</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-slate-200">~{Math.floor(op.buy_price * 0.7).toLocaleString()}</span>
-                                <Coins className="w-3.5 h-3.5 text-slate-500" />
-                              </div>
-                            </div>
-                            <div className="text-slate-700 text-lg">+</div>
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-500 font-bold uppercase mb-1">
-                                {getRequiredMaterials(op.item_id)}x {enchantLevel === '1' ? 'Runes' : enchantLevel === '2' ? 'Souls' : 'Relics'}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isPrivate && !isRestricted && (
+                              <span className="px-1.5 py-0.5 bg-gradient-to-r from-amber-400 to-amber-600 text-slate-950 text-[8px] font-black rounded uppercase tracking-widest shadow-[0_0_10px_rgba(245,158,11,0.5)] flex items-center gap-0.5">
+                                <Zap className="w-2 h-2 fill-current" />
+                                LIVE SYNC
                               </span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-slate-200">
-                                  {Math.floor(materialPrices[getMaterialId(op.item_id.split('_')[0], enchantLevel)] * getRequiredMaterials(op.item_id) || 0).toLocaleString()}
-                                </span>
-                                <Coins className="w-3.5 h-3.5 text-slate-500" />
-                              </div>
-                            </div>
-                            <div className="text-slate-700 text-lg">=</div>
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-purple-400/70 font-black uppercase mb-1">Total Cost</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg font-black text-purple-400">
-                                  {Math.floor((op.buy_price * 0.7) + (materialPrices[getMaterialId(op.item_id.split('_')[0], enchantLevel)] * getRequiredMaterials(op.item_id) || 0)).toLocaleString()}
-                                </span>
-                                <Coins className="w-4 h-4 text-purple-500" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex-1 bg-white/[0.02] rounded-2xl p-4 border border-white/5">
-                          <div className="flex justify-between items-center mb-3">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enchantment Flip Analysis</span>
-                            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black rounded border border-emerald-500/20 uppercase">Highly Profitable</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                              <div className="text-[9px] text-slate-500 font-bold uppercase">Estimated Net Profit</div>
-                              <div className="text-lg font-black text-emerald-400">+{Math.floor(op.sell_price - ((op.buy_price * 0.7) + (materialPrices[getMaterialId(op.item_id.split('_')[0], enchantLevel)] * getRequiredMaterials(op.item_id) || 0))).toLocaleString()} Silver</div>
-                            </div>
-                            <div className="space-y-1 text-right">
-                              <div className="text-[9px] text-slate-500 font-bold uppercase">Material Efficiency</div>
-                              <div className="text-lg font-black text-purple-400">Top 5% Market Value</div>
-                            </div>
+                            )}
+                            <span
+                              className={`inline-block text-[10px] font-black px-2 py-0.5 rounded tracking-wider uppercase ${isRestricted ? 'bg-amber-500/5 text-amber-500/30 border border-amber-500/10' : ''}`}
+                              style={!isRestricted ? {
+                                ...(op.quality === 5 ? { border: '1px solid #fbbf24', color: '#fbbf24', backgroundColor: 'transparent' } :
+                                  op.quality === 4 ? { border: '1px solid #ffffff', color: '#ffffff', backgroundColor: 'transparent' } :
+                                    op.quality === 3 ? { border: 'none', color: '#fdba74', backgroundColor: 'rgba(251,146,60,0.1)' } :
+                                      op.quality === 2 ? { border: 'none', color: '#7dd3fc', backgroundColor: 'rgba(125,211,252,0.05)' } :
+                                        { border: 'none', color: '#94a3b8', backgroundColor: 'rgba(30,41,59,0.5)' })
+                              } : {}}
+                            >
+                              {isRestricted ? 'LOCKED CONTENT' : (op.quality === 1 ? 'NORMAL' : op.quality === 2 ? 'GOOD' : op.quality === 3 ? 'OUTSTANDING' : op.quality === 4 ? 'EXCELLENT' : 'MASTERPIECE')}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </td>
+                    <td className="px-4 py-4">
+                      <div className={`flex flex-col gap-1 items-center transition-all ${isRestricted ? 'opacity-20 grayscale' : ''}`}>
+                        <span className={`px-3 py-1 rounded-md text-[10px] font-black border uppercase tracking-[0.1em] shadow-sm min-w-[95px] text-center ${cityStyles[op.buy_from_city] || 'text-slate-400 border-white/10 bg-slate-900'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                          {op.buy_from_city}
+                        </span>
+                        <span className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em]">City Market</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className={`text-base font-bold transition-all flex items-center justify-center gap-1.5 ${isRestricted ? 'opacity-30' : 'text-slate-200'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {isRestricted ? (
+                          <Lock className="w-3 h-3 text-amber-500/50" />
+                        ) : (
+                          <>
+                            <span>{Math.floor(op.buy_price).toLocaleString()}</span>
+                            <Coins className="w-4 h-4 text-slate-400" />
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className={`text-base font-bold transition-all flex flex-col items-center gap-1 ${isRestricted ? 'opacity-30' : 'text-slate-200'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="flex items-center gap-1 flex-wrap justify-center">
+                          {isRestricted ? (
+                            <Lock className="w-3 h-3 text-amber-500/50" />
+                          ) : (
+                            <>
+                              <span>{Math.floor(op.sell_price).toLocaleString()}</span>
+                              <Coins className="w-3.5 h-3.5 text-slate-400" />
+                            </>
+                          )}
+                        </div>
+                        {/* Show max price if there's a better order above the bulk price */}
+                        {!isRestricted && op.sell_price_max && op.sell_price_max > op.sell_price && (
+                          <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-black mt-0.5" title="Some orders fill at higher price">
+                            <span className="text-slate-500">↑ best:</span>
+                            <span>{Math.floor(op.sell_price_max).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {!isRestricted && op.demand !== undefined && op.demand > 0 && (
+                          <div className={`flex items-center gap-1 px-2 py-0.5 rounded border font-black text-[8px] uppercase tracking-wider mt-0.5
+                          ${op.demand >= 10
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                              : op.demand >= 5
+                                ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                                : 'bg-slate-800/80 border-white/10 text-slate-400'
+                            }`}
+                            title="Total items the Black Market wants to buy"
+                          >
+                            <svg className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            <span>Wants <b>{op.demand}</b> pcs</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 relative">
+                      <div className="flex flex-col items-center gap-2 transition-all">
+                        <div className="text-xl font-bold text-emerald-400 flex flex-col items-center gap-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {op.profit >= 1000000 ? (
+                            <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/50 rounded-full text-[9px] font-black text-amber-500 uppercase tracking-widest animate-floating animate-glow-gold flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.2)] mb-1">
+                              <Zap className="w-3 h-3 fill-current" />👑 ULTRA DEAL
+                            </span>
+                          ) : op.profit >= 500000 ? (
+                            <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/50 rounded-full text-[9px] font-black text-purple-400 uppercase tracking-widest animate-floating animate-glow-purple flex items-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)] mb-1">
+                              <Zap className="w-3 h-3 fill-current" />✨ SUPER DEAL
+                            </span>
+                          ) : null}
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span>+{Math.floor(op.profit).toLocaleString()}</span>
+                            <Coins className="w-5 h-5 text-slate-300 drop-shadow-[0_0_8px_rgba(148,163,184,0.4)]" />
+                          </div>
+                        </div>
+
+                        {isRestricted ? (
+                          <Link href="/pricing" className="relative group px-4 py-1.5 bg-gradient-to-r from-amber-400 to-amber-600 text-slate-950 text-[9px] font-black rounded-lg shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-amber-500/40 transition-all overflow-hidden uppercase tracking-wider mt-1">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-shine" />
+                            <span className="relative flex items-center gap-1.5">
+                              <Zap className="w-2.5 h-2.5 fill-current" />
+                              Unlock Pro
+                            </span>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-2 px-2 py-0.5 bg-amber-500/5 rounded border border-amber-500/10">
+                            <span className="text-[9px] text-amber-500/70 font-black">TOTAL:</span>
+                            <span className="text-[10px] text-amber-500 font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              {Math.floor(op.profit * (op.demand || 1)).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className={`flex flex-col items-center gap-2 transition-all ${isRestricted ? 'blur-md opacity-20' : ''}`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`text-xl font-bold ${op.roi_percentage >= 30 ? 'text-amber-500' : op.roi_percentage >= 15 ? 'text-emerald-400' : 'text-slate-400'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            {op.roi_percentage.toFixed(1)}%
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-1 max-w-[120px]">
+                          {op.demand !== undefined && op.demand >= 10 ? (
+                            <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[7px] font-black uppercase rounded-sm border border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.1)]">Bulk</span>
+                          ) : null}
+                          {op.roi_percentage >= 40 ? (
+                            <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[7px] font-black uppercase rounded-sm border border-emerald-500/20">Yield</span>
+                          ) : null}
+                          {op.item_id.includes('@') ? (
+                            <span
+                              onClick={() => setExpandedRow(expandedRow === `${op.item_id}-${op.quality}-${idx}` ? null : `${op.item_id}-${op.quality}-${idx}`)}
+                              className="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 text-[7px] font-black uppercase rounded-sm border border-purple-500/20 cursor-pointer hover:bg-purple-500/20 hover:border-purple-500/40 transition-all select-none"
+                              title="Click to see enchantment recipe"
+                            >Enchant ▾</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className={`flex flex-col items-center gap-3 transition-all ${isRestricted ? 'blur-md select-none opacity-20' : ''}`}>
+                        {(() => {
+                          const getDataStatus = (dateString: string) => {
+                            const date = new Date(dateString);
+                            const now = new Date();
+                            const diff = now.getTime() - date.getTime();
+                            const mins = Math.floor(diff / 60000);
+                            if (mins < 15) return 'fresh';
+                            if (mins > 60) return 'stale';
+                            return 'normal';
+                          };
+                          const buyStatus = getDataStatus(op.buy_price_date);
+                          const sellStatus = getDataStatus(op.sell_price_date);
+                          const isLive = buyStatus === 'fresh' && sellStatus === 'fresh';
+                          const isHighRisk = buyStatus === 'stale' || sellStatus === 'stale';
+                          return (
+                            <>
+                              <div className="flex items-center justify-center">
+                                {isLive ? (
+                                  <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                                    <Zap className="w-2.5 h-2.5" />
+                                    LIVE
+                                  </span>
+                                ) : isHighRisk ? (
+                                  <span className="flex items-center gap-1 text-[10px] font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                                    <Clock className="w-2.5 h-2.5 text-rose-500" />
+                                    RISKY
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-[10px] font-black text-amber-500/60 bg-amber-500/5 px-2 py-0.5 rounded-full border border-amber-500/10">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    STABLE
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] font-black text-slate-500 text-center space-y-0.5 uppercase tracking-tight">
+                                <div className="flex justify-center gap-1.5">
+                                  <span className="opacity-40">B:</span>
+                                  <span className={buyStatus === 'fresh' ? 'text-emerald-400' : buyStatus === 'stale' ? 'text-rose-400' : 'text-slate-400'}>{getTimeAgo(op.buy_price_date)}</span>
+                                </div>
+                                <div className="flex justify-center gap-1.5">
+                                  <span className="opacity-40">S:</span>
+                                  <span className={sellStatus === 'fresh' ? 'text-emerald-400' : sellStatus === 'stale' ? 'text-rose-400' : 'text-slate-400'}>{getTimeAgo(op.sell_price_date)}</span>
+                                </div>
+                              </div>
+
+                              {!isRestricted && (
+                                <div className="flex items-center gap-2 mt-3 w-full border-t border-white/5 pt-3">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); hideDeal(op); }}
+                                    className="flex-1 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/50 rounded flex items-center justify-center transition-all group"
+                                    title="Mark as Stolen (Hide)"
+                                  >
+                                    <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); hideDeal(op); }}
+                                    className="flex-1 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/50 rounded flex items-center justify-center transition-all group"
+                                    title="I Won It! (Hide)"
+                                  >
+                                    <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </td>
                   </tr>
-                )}
+                  {/* Enchantment Recipe Panel */}
+                  {expandedRow === `${op.item_id}-${op.quality}-${idx}` && isEnchanted && (
+                    <tr className="bg-purple-500/[0.03] animate-in fade-in slide-in-from-top-2">
+                      <td colSpan={7} className="px-8 py-6 border-b border-purple-500/20">
+                        <div className="flex items-start gap-12">
+                          <div className="flex flex-col gap-3">
+                            <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em] flex items-center gap-2">
+                              <Zap className="w-3 h-3" /> Enchantment Recipe
+                            </h4>
+                            <div className="flex items-center gap-6">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-slate-500 font-bold uppercase mb-1">Base Item (.0)</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-slate-200">~{Math.floor(op.buy_price * 0.7).toLocaleString()}</span>
+                                  <Coins className="w-3.5 h-3.5 text-slate-500" />
+                                </div>
+                              </div>
+                              <div className="text-slate-700 text-lg">+</div>
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-slate-500 font-bold uppercase mb-1">
+                                  {getRequiredMaterials(op.item_id)}x {enchantLevel === '1' ? 'Runes' : enchantLevel === '2' ? 'Souls' : 'Relics'}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-slate-200">
+                                    {Math.floor(materialPrices[getMaterialId(op.item_id.split('_')[0], enchantLevel)] * getRequiredMaterials(op.item_id) || 0).toLocaleString()}
+                                  </span>
+                                  <Coins className="w-3.5 h-3.5 text-slate-500" />
+                                </div>
+                              </div>
+                              <div className="text-slate-700 text-lg">=</div>
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-purple-400/70 font-black uppercase mb-1">Total Cost</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-black text-purple-400">
+                                    {Math.floor((op.buy_price * 0.7) + (materialPrices[getMaterialId(op.item_id.split('_')[0], enchantLevel)] * getRequiredMaterials(op.item_id) || 0)).toLocaleString()}
+                                  </span>
+                                  <Coins className="w-4 h-4 text-purple-500" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex-1 bg-white/[0.02] rounded-2xl p-4 border border-white/5">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enchantment Flip Analysis</span>
+                              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black rounded border border-emerald-500/20 uppercase">Highly Profitable</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <div className="text-[9px] text-slate-500 font-bold uppercase">Estimated Net Profit</div>
+                                <div className="text-lg font-black text-emerald-400">+{Math.floor(op.sell_price - ((op.buy_price * 0.7) + (materialPrices[getMaterialId(op.item_id.split('_')[0], enchantLevel)] * getRequiredMaterials(op.item_id) || 0))).toLocaleString()} Silver</div>
+                              </div>
+                              <div className="space-y-1 text-right">
+                                <div className="text-[9px] text-slate-500 font-bold uppercase">Material Efficiency</div>
+                                <div className="text-lg font-black text-purple-400">Top 5% Market Value</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </React.Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
-      
+
       {opportunities.length === 0 && !loading && (
         <div className="py-20 text-center text-slate-500">
           No profitable opportunities found for current items.

@@ -61,6 +61,19 @@ async def invalidate_deal(req: InvalidateRequest, x_user_id: Optional[str] = Hea
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/private-sync/clear-all")
+async def clear_all_data(x_user_id: Optional[str] = Header(None)):
+    try:
+        from services.private_price_service import clear_all_private_data
+        user_id = x_user_id or "global"
+        success = clear_all_private_data(user_id)
+        if success:
+            return {"status": "success", "message": "All private data cleared"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to clear data")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 LOCATION_MAP = {
     "4": "Fort Sterling",
     "0004": "Fort Sterling",
