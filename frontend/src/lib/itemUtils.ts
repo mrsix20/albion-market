@@ -1,6 +1,6 @@
 /**
  * Item Utilities for Albion Market
- * Updated by: HamoNestic
+ * Author: HamoNestic (Verified)
  */
 
 export interface ItemData {
