@@ -25,27 +25,10 @@ async def get_black_market_flips(request: FlipperRequest, x_user_id: Optional[st
     
     # --- SMART FILTERING OPTIMIZATION ---
     # Only fetch from AODP the items we DON'T have fresh private data for.
-    # This massively reduces the load on AODP and speeds up the response.
-    from services.private_price_service import _private_store
-    items_to_fetch_publicly = []
+    from services.private_price_service import get_fresh_private_item_ids
     
-    user_store = _private_store.get(user_id, {})
-    for item_id in combined_items:
-        # If we have private data for this item (any quality) that is less than 30 mins old,
-        # we can skip the public fetch for it to save resources.
-        has_fresh_private = False
-        for q in range(1, 6):
-            p_data = user_store.get((item_id, q))
-            if p_data:
-                # Check freshness (30 mins)
-                from datetime import datetime, timezone
-                last_updated = datetime.fromisoformat(p_data.buy_price_max_date.replace("Z", "+00:00"))
-                if (datetime.now(timezone.utc) - last_updated).total_seconds() < 1800:
-                    has_fresh_private = True
-                    break
-        
-        if not has_fresh_private:
-            items_to_fetch_publicly.append(item_id)
+    fresh_private_item_ids = get_fresh_private_item_ids(user_id, combined_items, minutes=30)
+    items_to_fetch_publicly = [i for i in combined_items if i not in fresh_private_item_ids]
 
     try:
         # Fetch ONLY what we don't have privately

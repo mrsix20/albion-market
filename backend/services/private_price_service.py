@@ -1,131 +1,274 @@
-from typing import List, Dict, Optional
-from datetime import datetime
+import sqlite3
+import os
+import threading
+from datetime import datetime, timedelta
+from typing import List, Dict, Tuple, Optional
 from schemas.market import AODPPriceData
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Stores are now user-specific
-# Structure: { "user_id": { (item_id, city, quality): AODPPriceData } }
-# ─────────────────────────────────────────────────────────────────────────────
-_private_store: Dict[str, Dict[tuple, AODPPriceData]] = {}
-_bm_tiers_store: Dict[str, Dict[tuple, dict]] = {}
+# Path to SQLite database file inside the workspace
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "private_market.db")
+db_lock = threading.Lock()
 
-def clean_old_data(user_id: str):
-    """
-    Remove data older than 12 hours from a user's store to prevent memory buildup.
-    """
-    store = get_user_private_store(user_id)
-    bm_store = get_user_bm_tiers_store(user_id)
-    now = datetime.utcnow()
-    
-    # Clean standard prices
-    to_delete = []
-    for key, data in store.items():
-        # Use the most recent update date from the data
-        date_str = data.sell_price_min_date or data.buy_price_max_date
-        try:
-            d = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-            if (now.replace(tzinfo=None) - d.replace(tzinfo=None)).total_seconds() > 12 * 3600:
-                to_delete.append(key)
-        except:
-            continue
-    for key in to_delete:
-        del store[key]
+def init_db():
+    """Initializes the SQLite database and ensures WAL mode for high concurrency."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            # Enable WAL mode for performance
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            
+            # Create table for private prices
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS private_prices (
+                    user_id TEXT,
+                    item_id TEXT,
+                    city TEXT,
+                    quality INTEGER,
+                    sell_price_min INTEGER,
+                    sell_price_min_date TEXT,
+                    sell_price_max INTEGER,
+                    sell_price_max_date TEXT,
+                    buy_price_min INTEGER,
+                    buy_price_min_date TEXT,
+                    buy_price_max INTEGER,
+                    buy_price_max_date TEXT,
+                    buy_price_max_quantity INTEGER,
+                    sell_price_min_quantity INTEGER,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (user_id, item_id, city, quality)
+                )
+            """)
+            
+            # Create table for BM tiers
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bm_tiers (
+                    user_id TEXT,
+                    item_id TEXT,
+                    quality INTEGER,
+                    price INTEGER,
+                    qty INTEGER,
+                    date TEXT,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (user_id, item_id, quality, price)
+                )
+            """)
+            
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"DB Init Error: {e}")
 
-    # Clean BM tiers
-    to_delete_bm = []
-    for key, tier in bm_store.items():
-        try:
-            d = datetime.fromisoformat(tier["date"].replace("Z", "+00:00"))
-            if (now.replace(tzinfo=None) - d.replace(tzinfo=None)).total_seconds() > 12 * 3600:
-                to_delete_bm.append(key)
-        except:
-            continue
-    for key in to_delete_bm:
-        del bm_store[key]
+# Initialize DB on module load
+init_db()
 
-def get_user_private_store(user_id: str) -> Dict[tuple, AODPPriceData]:
-    if user_id not in _private_store:
-        _private_store[user_id] = {}
-    return _private_store[user_id]
+def cleanup_old_data():
+    """Deletes data older than 12 hours to prevent disk bloating."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            expiry_time = (datetime.now() - timedelta(hours=12)).isoformat()
+            cursor.execute("DELETE FROM private_prices WHERE last_updated < ?", (expiry_time,))
+            cursor.execute("DELETE FROM bm_tiers WHERE last_updated < ?", (expiry_time,))
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"Cleanup Error: {e}")
 
-def get_user_bm_tiers_store(user_id: str) -> Dict[tuple, dict]:
-    if user_id not in _bm_tiers_store:
-        _bm_tiers_store[user_id] = {}
-    return _bm_tiers_store[user_id]
+def ingest_private_data(user_id: str, data: List[AODPPriceData]):
+    """Stores incoming private scan data into SQLite."""
+    # Run cleanup with 10% chance per ingest
+    if os.urandom(1)[0] % 10 == 0:
+        cleanup_old_data()
 
-def update_private_prices(prices: List[AODPPriceData], user_id: str = "global"):
-    """
-    Store incoming private city sell price data for a specific user.
-    """
-    # Clean old data before adding new one
-    clean_old_data(user_id)
-    
-    store = get_user_private_store(user_id)
-    for price in prices:
-        price.is_private = True
-        key = (price.item_id, price.city, price.quality)
-        store[key] = price
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            now_iso = datetime.now().isoformat()
+            
+            for item in data:
+                cursor.execute("""
+                    INSERT INTO private_prices (
+                        user_id, item_id, city, quality, 
+                        sell_price_min, sell_price_min_date, 
+                        sell_price_max, sell_price_max_date, 
+                        buy_price_min, buy_price_min_date, 
+                        buy_price_max, buy_price_max_date, 
+                        buy_price_max_quantity, sell_price_min_quantity,
+                        last_updated
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(user_id, item_id, city, quality) DO UPDATE SET
+                        sell_price_min=excluded.sell_price_min,
+                        sell_price_min_date=excluded.sell_price_min_date,
+                        sell_price_max=excluded.sell_price_max,
+                        sell_price_max_date=excluded.sell_price_max_date,
+                        buy_price_min=excluded.buy_price_min,
+                        buy_price_min_date=excluded.buy_price_min_date,
+                        buy_price_max=excluded.buy_price_max,
+                        buy_price_max_date=excluded.buy_price_max_date,
+                        buy_price_max_quantity=excluded.buy_price_max_quantity,
+                        sell_price_min_quantity=excluded.sell_price_min_quantity,
+                        last_updated=?
+                """, (
+                    user_id, item.item_id, item.city, item.quality,
+                    item.sell_price_min, item.sell_price_min_date,
+                    item.sell_price_max, item.sell_price_max_date,
+                    item.buy_price_min, item.buy_price_min_date,
+                    item.buy_price_max, item.buy_price_max_date,
+                    item.buy_price_max_quantity, item.sell_price_min_quantity,
+                    now_iso, now_iso
+                ))
+            
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"DB Ingest Error: {e}")
 
 def update_bm_tiers(item_id: str, quality: int, price: int, qty: int, date: str, user_id: str = "global"):
-    """
-    Store a single BM buy order price tier for a specific user.
-    """
-    # Clean old data before adding new one
-    clean_old_data(user_id)
-    
-    store = get_user_bm_tiers_store(user_id)
-    key = (item_id, quality, price)
-    store[key] = {
-        "price": price,
-        "qty": qty,
-        "date": date,
-        "item_id": item_id,
-        "quality": quality,
-    }
+    """Stores BM price tiers into SQLite."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            now_iso = datetime.now().isoformat()
+            cursor.execute("""
+                INSERT INTO bm_tiers (user_id, item_id, quality, price, qty, date, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, item_id, quality, price) DO UPDATE SET
+                    qty=excluded.qty,
+                    date=excluded.date,
+                    last_updated=?
+            """, (user_id, item_id, quality, price, qty, date, now_iso, now_iso))
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"DB Tier Update Error: {e}")
 
-def get_bm_tiers(item_id: str, quality: int, user_id: str = "global") -> List[dict]:
-    """
-    Get all price tiers for a specific user.
-    """
-    store = get_user_bm_tiers_store(user_id)
-    results = []
-    for (iid, q, price), tier in store.items():
-        if iid == item_id and q == quality:
-            results.append(tier)
-    return sorted(results, key=lambda x: x["price"], reverse=True)
+def merge_prices(public_data: List[AODPPriceData], items: List[str], locations: List[str], user_id: str = "global") -> List[AODPPriceData]:
+    """Merges public AODP data with private SQLite data, prioritizing the latter."""
+    private_data_map = {}
+    if not items or not locations:
+        return public_data
 
-def get_all_bm_tier_item_ids(user_id: str = "global") -> List[str]:
-    """Return all unique item IDs for a specific user."""
-    store = get_user_bm_tiers_store(user_id)
-    return list({iid for (iid, _, _) in store.keys()})
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            
+            item_placeholders = ",".join(["?"] * len(items))
+            loc_placeholders = ",".join(["?"] * len(locations))
+            
+            query = f"SELECT * FROM private_prices WHERE user_id = ? AND item_id IN ({item_placeholders}) AND city IN ({loc_placeholders})"
+            cursor.execute(query, [user_id] + items + locations)
+            
+            rows = cursor.fetchall()
+            for row in rows:
+                p_item = AODPPriceData(
+                    item_id=row[1],
+                    city=row[2],
+                    quality=row[3],
+                    sell_price_min=row[4],
+                    sell_price_min_date=row[5],
+                    sell_price_max=row[6],
+                    sell_price_max_date=row[7],
+                    buy_price_min=row[8],
+                    buy_price_min_date=row[9],
+                    buy_price_max=row[10],
+                    buy_price_max_date=row[11],
+                    buy_price_max_quantity=row[12],
+                    sell_price_min_quantity=row[13],
+                    is_private=True
+                )
+                private_data_map[(p_item.item_id, p_item.city, p_item.quality)] = p_item
+            conn.close()
+    except Exception as e:
+        print(f"DB Merge Error: {e}")
 
-def get_all_private_item_ids(user_id: str = "global") -> List[str]:
-    """Return all unique item IDs present in the private store for a user."""
-    store = get_user_private_store(user_id)
-    return list({iid for (iid, _, _) in store.keys()})
+    merged_results = []
+    seen_keys = set()
 
-def get_private_prices(items: List[str], locations: Optional[List[str]] = None, user_id: str = "global") -> List[AODPPriceData]:
-    """
-    Retrieve stored private prices for a specific user.
-    """
-    store = get_user_private_store(user_id)
-    results = []
-    for (item_id, city, quality), data in store.items():
-        if item_id in items:
-            if locations is None or city in locations:
-                results.append(data)
-    return results
+    for key, p_item in private_data_map.items():
+        merged_results.append(p_item)
+        seen_keys.add(key)
 
-def merge_prices(public_prices: List[AODPPriceData], items: List[str], locations: Optional[List[str]] = None, user_id: str = "global") -> List[AODPPriceData]:
-    """
-    Merges public prices with private prices of a specific user.
-    """
-    private_prices = get_private_prices(items, locations, user_id)
-    
-    merged_map = {}
-    for p in public_prices:
-        merged_map[(p.item_id, p.city, p.quality)] = p
-    for p in private_prices:
-        merged_map[(p.item_id, p.city, p.quality)] = p
-        
-    return list(merged_map.values())
+    for item in public_data:
+        key = (item.item_id, item.city, item.quality)
+        if key not in seen_keys:
+            merged_results.append(item)
+            seen_keys.add(key)
+
+    return merged_results
+
+def get_all_private_item_ids(user_id: str) -> List[str]:
+    """Returns a list of all item IDs this user has privately scanned."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT item_id FROM private_prices WHERE user_id = ?", (user_id,))
+            items = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            return items
+    except:
+        return []
+
+def get_bm_tiers(item_id: str, quality: int, user_id: str = "global") -> List[Dict]:
+    """Retrieves BM tiers from SQLite for the specific user."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT price, qty, date FROM bm_tiers 
+                WHERE user_id = ? AND item_id = ? AND quality = ? 
+                ORDER BY price DESC
+            """, (user_id, item_id, quality))
+            rows = cursor.fetchall()
+            conn.close()
+            return [{"price": r[0], "qty": r[1], "date": r[2]} for r in rows]
+    except:
+        return []
+
+def get_all_bm_tier_item_ids(user_id: str) -> List[str]:
+    """Returns all unique item IDs that have BM tiers stored."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT item_id FROM bm_tiers WHERE user_id = ?", (user_id,))
+            items = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            return items
+    except:
+        return []
+
+def get_fresh_private_item_ids(user_id: str, items: List[str], minutes: int = 30) -> List[str]:
+    """Returns a list of item IDs that have private data newer than 'minutes' ago."""
+    if not items:
+        return []
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            placeholders = ",".join(["?"] * len(items))
+            expiry_limit = (datetime.now() - timedelta(minutes=minutes)).isoformat()
+            
+            # If any quality/city for this item is fresh, we consider the item "tracked" privately
+            cursor.execute(f"""
+                SELECT DISTINCT item_id FROM private_prices 
+                WHERE user_id = ? AND item_id IN ({placeholders}) AND last_updated > ?
+            """, [user_id] + items + [expiry_limit])
+            
+            fresh_items = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            return fresh_items
+    except Exception as e:
+        print(f"Freshness Check Error: {e}")
+        return []
+
+def update_private_prices(prices: List[AODPPriceData], user_id: str = "global"):
+    """Legacy wrapper for ingest_private_data."""
+    ingest_private_data(user_id, prices)

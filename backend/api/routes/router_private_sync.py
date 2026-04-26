@@ -36,10 +36,10 @@ async def sync_private_prices(prices: List[AODPPriceData], x_user_id: Optional[s
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/private-sync/invalidate")
-async def invalidate_deal(req: InvalidateRequest):
+async def invalidate_deal(req: InvalidateRequest, x_user_id: Optional[str] = Header(None)):
     try:
-        from services.private_price_service import _private_store
-        from datetime import datetime
+        from services.private_price_service import ingest_private_data
+        user_id = x_user_id or "global"
         now = datetime.utcnow().isoformat() + "Z"
         
         dummy_price = AODPPriceData(
@@ -56,7 +56,7 @@ async def invalidate_deal(req: InvalidateRequest):
             buy_price_max_date=now,
             is_private=True
         )
-        _private_store[(req.item_id, req.city, req.quality)] = dummy_price
+        ingest_private_data(user_id, [dummy_price])
         return {"status": "success", "message": "Deal invalidated"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -177,19 +177,9 @@ async def sync_official_market_orders(upload: OfficialMarketUpload, path: Option
         print(f"--- [ERROR] Failed to process official orders: {e} ---")
         raise HTTPException(status_code=500, detail=str(e))
 
-from services.private_price_service import _private_store
-
-@router.get("/debug-store")
-async def debug_store(x_user_id: Optional[str] = Header(None)):
-    from services.private_price_service import _private_store
-    
-    if x_user_id:
-        user_store = _private_store.get(x_user_id, {})
-        return {f"{k[0]}_{k[1]}_{k[2]}": v for k, v in user_store.items()}
-    
-    # Return all users data for debugging
-    all_data = {}
-    for user_id, user_store in _private_store.items():
-        all_data[user_id] = {f"{k[0]}_{k[1]}_{k[2]}": v for k, v in user_store.items()}
-    return all_data
-
+@router.get("/debug-db")
+async def debug_db(x_user_id: Optional[str] = Header(None)):
+    from services.private_price_service import get_all_private_item_ids
+    user_id = x_user_id or "global"
+    items = get_all_private_item_ids(user_id)
+    return {"user_id": user_id, "tracked_items_count": len(items), "items": items}
