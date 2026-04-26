@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Search, Filter, Percent, ChevronRight, Zap, Clock, Coins, Lock } from 'lucide-react';
+import { RefreshCw, Search, Filter, Percent, ChevronRight, Zap, Clock, Coins, Lock, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getBlackMarketFlips, ArbitrageOpportunity, invalidateDeal } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
@@ -35,6 +35,7 @@ export default function ArbitrageTable() {
   const [error, setError] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [materialPrices, setMaterialPrices] = useState<Record<string, number>>({});
+  const [itemMap, setItemMap] = useState<Record<string, string>>({});
 
   const materialItems = [
     'T4_RUNE', 'T5_RUNE', 'T6_RUNE', 'T7_RUNE', 'T8_RUNE',
@@ -90,6 +91,24 @@ export default function ArbitrageTable() {
       }
     };
     fetchMaterials();
+
+    // Fetch official item names for 100% accuracy
+    const fetchItemNames = async () => {
+      try {
+        const response = await fetch('/items.json');
+        if (response.ok) {
+          const data = await response.json();
+          const map: Record<string, string> = {};
+          data.forEach((item: any) => {
+            map[item.id] = item.name;
+          });
+          setItemMap(map);
+        }
+      } catch (err) {
+        console.error("Failed to fetch item names mapping", err);
+      }
+    };
+    fetchItemNames();
   }, []);
   
   // Filters
@@ -270,6 +289,35 @@ export default function ArbitrageTable() {
     }
   };
 
+  const handleClearData = async () => {
+    if (!window.confirm("Are you sure you want to delete ALL private market data? This cannot be undone.")) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/flipper/clear`, {
+        method: 'DELETE',
+        headers: {
+          'X-User-ID': user?.id || 'global'
+        }
+      });
+      
+      if (response.ok) {
+        setOpportunities([]);
+        alert("All private data has been cleared.");
+        fetchData(); // Refresh to show only public data
+      } else {
+        alert("Failed to clear data.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error clearing data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -440,20 +488,15 @@ export default function ArbitrageTable() {
   }
 
   const getInGameName = (itemId: string) => {
-    const parts = itemId.split('@')[0].split('_');
-    const tier = parts[0]; // e.g. T4
-    
+    const baseId = itemId.split('@')[0];
+    if (itemMap[baseId]) return itemMap[baseId];
+
+    const parts = baseId.split('_');
+    const tier = parts[0]; 
     const tierNames: Record<string, string> = {
       'T1': "Beginner's", 'T2': "Novice's", 'T3': "Journeyman's",
       'T4': "Adept's", 'T5': "Expert's", 'T6': "Master's",
       'T7': "Grandmaster's", 'T8': "Elder's"
-    };
-
-    // Specific mapping for Armor Sets
-    const setNames: Record<string, string> = {
-      'PLATE_SET1': 'Soldier', 'PLATE_SET2': 'Knight', 'PLATE_SET3': 'Guardian',
-      'LEATHER_SET1': 'Mercenary', 'LEATHER_SET2': 'Hunter', 'LEATHER_SET3': 'Assassin',
-      'CLOTH_SET1': 'Scholar', 'CLOTH_SET2': 'Cleric', 'CLOTH_SET3': 'Mage'
     };
 
     const typeNames: Record<string, string> = {
@@ -464,23 +507,20 @@ export default function ArbitrageTable() {
       'MOUNT_HORSE': 'Riding Horse', 'MOUNT_OX': 'Transport Ox'
     };
 
-    // Logic to build the name
     let name = "";
     const remainingParts = parts.slice(1).join('_');
-    
-    // Check if it's a set item (Armor/Head/Shoes)
-    const setKey = Object.keys(setNames).find(key => remainingParts.includes(key));
     const typeKey = Object.keys(typeNames).find(key => remainingParts.includes(key));
 
-    if (setKey && typeKey) {
-      name = `${setNames[setKey]} ${typeNames[typeKey]}`;
-    } else if (typeKey) {
-      name = typeNames[typeKey];
+    if (tierNames[tier] && typeKey) {
+      name = `${tierNames[tier]} ${typeNames[typeKey]}`;
     } else {
       name = remainingParts.replace(/_/g, ' ');
     }
-
     return `${tierNames[tier] || tier} ${name}`;
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
   };
 
   const copyToClipboard = (text: string) => {
@@ -643,6 +683,16 @@ export default function ArbitrageTable() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
             {loading ? 'Refreshing...' : 'Refresh Data'}
+          </button>
+
+          <button 
+            onClick={handleClearData}
+            disabled={loading}
+            className="flex items-center gap-2 px-6 py-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/20 transition-all group shadow-lg"
+            title="Wipe all scanned data"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Clear All Data
           </button>
           
           <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 bg-slate-950/50 px-5 py-2.5 rounded-xl border border-white/5 shadow-xl hidden md:flex">

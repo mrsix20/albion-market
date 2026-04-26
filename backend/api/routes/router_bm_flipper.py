@@ -239,3 +239,15 @@ async def get_black_market_flips(request: FlipperRequest, x_user_id: Optional[st
     opportunities.sort(key=lambda x: x.profit, reverse=True)
     
     return FlipperResponse(opportunities=opportunities)
+
+@router.delete("/clear")
+async def clear_private_market(x_user_id: Optional[str] = Header(None)):
+    """
+    Clears all private market data for the current user.
+    """
+    from services.private_price_service import clear_all_private_data
+    user_id = x_user_id or "global"
+    success = clear_all_private_data(user_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to clear market data.")
+    return {"status": "success", "message": "All private data cleared."}

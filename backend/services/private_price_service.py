@@ -282,3 +282,18 @@ def get_fresh_private_item_ids(user_id: str, items: List[str], minutes: int = 30
 def update_private_prices(prices: List[AODPPriceData], user_id: str = "global"):
     """Legacy wrapper for ingest_private_data."""
     ingest_private_data(user_id, prices)
+
+def clear_all_private_data(user_id: str):
+    """Deletes all private market data for the specified user."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM private_prices WHERE user_id = ?", (user_id,))
+            cursor.execute("DELETE FROM bm_tiers WHERE user_id = ?", (user_id,))
+            conn.commit()
+            conn.close()
+            return True
+    except Exception as e:
+        print(f"Clear DB Error: {e}")
+        return False
