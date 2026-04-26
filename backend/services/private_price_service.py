@@ -154,35 +154,39 @@ def merge_prices(public_data: List[AODPPriceData], items: List[str], locations: 
         return public_data
 
     try:
+        # SQLite has a limit of 999 variables per query. Chunk items to avoid crashes.
+        CHUNK_SIZE = 500
         with db_lock:
             conn = sqlite3.connect(DB_PATH, check_same_thread=False)
             cursor = conn.cursor()
             
-            item_placeholders = ",".join(["?"] * len(items))
-            loc_placeholders = ",".join(["?"] * len(locations))
-            
-            query = f"SELECT * FROM private_prices WHERE user_id = ? AND item_id IN ({item_placeholders}) AND city IN ({loc_placeholders})"
-            cursor.execute(query, [user_id] + items + locations)
-            
-            rows = cursor.fetchall()
-            for row in rows:
-                p_item = AODPPriceData(
-                    item_id=row[1],
-                    city=row[2],
-                    quality=row[3],
-                    sell_price_min=row[4],
-                    sell_price_min_date=row[5],
-                    sell_price_max=row[6],
-                    sell_price_max_date=row[7],
-                    buy_price_min=row[8],
-                    buy_price_min_date=row[9],
-                    buy_price_max=row[10],
-                    buy_price_max_date=row[11],
-                    buy_price_max_quantity=row[12],
-                    sell_price_min_quantity=row[13],
-                    is_private=True
-                )
-                private_data_map[(p_item.item_id, p_item.city, p_item.quality)] = p_item
+            for i in range(0, len(items), CHUNK_SIZE):
+                chunk = items[i:i + CHUNK_SIZE]
+                item_placeholders = ",".join(["?"] * len(chunk))
+                loc_placeholders = ",".join(["?"] * len(locations))
+                
+                query = f"SELECT * FROM private_prices WHERE user_id = ? AND item_id IN ({item_placeholders}) AND city IN ({loc_placeholders})"
+                cursor.execute(query, [user_id] + chunk + locations)
+                
+                rows = cursor.fetchall()
+                for row in rows:
+                    p_item = AODPPriceData(
+                        item_id=row[1],
+                        city=row[2],
+                        quality=row[3],
+                        sell_price_min=row[4],
+                        sell_price_min_date=row[5],
+                        sell_price_max=row[6],
+                        sell_price_max_date=row[7],
+                        buy_price_min=row[8],
+                        buy_price_min_date=row[9],
+                        buy_price_max=row[10],
+                        buy_price_max_date=row[11],
+                        buy_price_max_quantity=row[12],
+                        sell_price_min_quantity=row[13],
+                        is_private=True
+                    )
+                    private_data_map[(p_item.item_id, p_item.city, p_item.quality)] = p_item
             conn.close()
     except Exception as e:
         print(f"DB Merge Error: {e}")
@@ -250,21 +254,27 @@ def get_fresh_private_item_ids(user_id: str, items: List[str], minutes: int = 30
     if not items:
         return []
     try:
+        CHUNK_SIZE = 500
+        fresh_items = []
         with db_lock:
             conn = sqlite3.connect(DB_PATH, check_same_thread=False)
             cursor = conn.cursor()
-            placeholders = ",".join(["?"] * len(items))
-            expiry_limit = (datetime.now() - timedelta(minutes=minutes)).isoformat()
             
-            # If any quality/city for this item is fresh, we consider the item "tracked" privately
-            cursor.execute(f"""
-                SELECT DISTINCT item_id FROM private_prices 
-                WHERE user_id = ? AND item_id IN ({placeholders}) AND last_updated > ?
-            """, [user_id] + items + [expiry_limit])
+            for i in range(0, len(items), CHUNK_SIZE):
+                chunk = items[i:i + CHUNK_SIZE]
+                placeholders = ",".join(["?"] * len(chunk))
+                expiry_limit = (datetime.now() - timedelta(minutes=minutes)).isoformat()
+                
+                # If any quality/city for this item is fresh, we consider the item "tracked" privately
+                cursor.execute(f"""
+                    SELECT DISTINCT item_id FROM private_prices 
+                    WHERE user_id = ? AND item_id IN ({placeholders}) AND last_updated > ?
+                """, [user_id] + chunk + [expiry_limit])
+                
+                fresh_items.extend([row[0] for row in cursor.fetchall()])
             
-            fresh_items = [row[0] for row in cursor.fetchall()]
             conn.close()
-            return fresh_items
+            return list(set(fresh_items)) # Remove duplicates across chunks
     except Exception as e:
         print(f"Freshness Check Error: {e}")
         return []
