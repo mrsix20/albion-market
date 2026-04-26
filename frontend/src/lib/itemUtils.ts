@@ -1,6 +1,6 @@
 /**
  * Item Utilities for Albion Market
- * Email Test: Yahoo Verified
+ * User Name Check: hamonestic
  */
 
 export interface ItemData {
