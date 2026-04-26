@@ -1,3 +1,7 @@
+/**
+ * Item Utilities for Albion Market
+ * Updated by: HamoNestic
+ */
 
 export interface ItemData {
   id: string;
