@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Search, Filter, Percent, ChevronRight, Zap, Clock, Coins, Lock, Trash2, Check, CheckCircle2, Copy, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Search, Filter, Percent, ChevronRight, Zap, Clock, Coins, Lock, Trash2, Check, CheckCircle2, Copy, AlertTriangle, X, Package } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getBlackMarketFlips, ArbitrageOpportunity, invalidateDeal, clearAllData } from '@/lib/api';
 import { getInGameName } from '@/lib/itemUtils';
@@ -35,7 +35,15 @@ export default function ArbitrageTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [materialPrices, setMaterialPrices] = useState<Record<string, number>>({});
+  const [materialPrices, setMaterialPrices] = useState<Record<string, number>>({
+    'T4_RUNE': 50, 'T4_SOUL': 150, 'T4_RELIC': 500,
+    'T5_RUNE': 150, 'T5_SOUL': 450, 'T5_RELIC': 1500,
+    'T6_RUNE': 500, 'T6_SOUL': 1500, 'T6_RELIC': 5000,
+    'T7_RUNE': 1500, 'T7_SOUL': 4500, 'T7_RELIC': 15000,
+    'T8_RUNE': 5000, 'T8_SOUL': 15000, 'T8_RELIC': 50000,
+  });
+  const [showMaterialSettings, setShowMaterialSettings] = useState(false);
+  const [showBulkOnly, setShowBulkOnly] = useState(false);
   const [itemMap, setItemMap] = useState<Record<string, string>>({});
 
   const materialItems = [
@@ -406,7 +414,8 @@ export default function ArbitrageTable() {
     const cityMatch = selectedCity === "All" || op.buy_from_city === selectedCity;
     const profitMatch = op.profit >= minProfit;
     const roiMatch = op.roi_percentage >= minROI;
-    return tierMatch && cityMatch && profitMatch && roiMatch;
+    const bulkMatch = !showBulkOnly || (op.sell_amount > 1);
+    return tierMatch && cityMatch && profitMatch && roiMatch && bulkMatch;
   });
 
   // Helper to check if a deal is "Pro"
@@ -484,9 +493,9 @@ export default function ArbitrageTable() {
 
   return (
     <div className="overflow-hidden glass rounded-2xl border border-white/10 shadow-2xl">
-      <div className="px-6 py-6 border-b border-white/10 flex flex-wrap items-start gap-x-8 gap-y-6 bg-white/[0.02]">
-        <div className="flex flex-col gap-3">
-          <form onSubmit={handleSearch} className="flex flex-col gap-2">
+      <div className="px-6 py-4 border-b border-white/10 flex flex-wrap items-start gap-x-8 gap-y-4 bg-white/[0.02]">
+        <div className="flex flex-col gap-2">
+          <form onSubmit={handleSearch} className="flex flex-col gap-1.5">
             <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
               <Search className="w-3 h-3" /> Quick Search
             </label>
@@ -497,44 +506,44 @@ export default function ArbitrageTable() {
                   placeholder="e.g. T6_MAIN_SPEAR"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-64 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl placeholder:text-slate-700 font-medium h-[42px]"
+                  className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-64 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl placeholder:text-slate-700 font-medium h-[40px]"
                 />
                 <div className="absolute inset-0 rounded-xl bg-amber-500/5 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity"></div>
               </div>
-              <button type="submit" className="px-5 py-2.5 bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider hover:brightness-110 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 flex items-center gap-2 shadow-lg h-[42px]">
+              <button type="submit" className="px-5 py-2.5 bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider hover:brightness-110 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 flex items-center gap-2 shadow-lg h-[40px]">
                 <Zap className="w-3.5 h-3.5" />
                 Search
               </button>
             </div>
           </form>
-
-          <div className="ml-1 mt-2 flex items-center">
+ 
+          <div className="ml-1 mt-2 flex items-center gap-4">
             {!showClearConfirm ? (
               <button
                 onClick={() => setShowClearConfirm(true)}
                 disabled={loading}
-                className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/5 border border-rose-500/10 text-rose-500/50 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg font-black uppercase tracking-widest text-[9px] transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-3 py-1 bg-rose-500/5 border border-rose-500/10 text-rose-500/50 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg font-black uppercase tracking-widest text-[9px] transition-all disabled:opacity-50 h-[30px]"
               >
                 <Trash2 className="w-3 h-3" />
-                Clear All Scanned Data
+                Clear Scanned Data
               </button>
             ) : (
-              <div className="flex items-center gap-3 bg-rose-950/40 border border-rose-500/20 px-3 py-1 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300 shadow-xl">
+              <div className="flex items-center gap-3 bg-rose-950/40 border border-rose-500/20 px-3 py-1 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300 shadow-xl h-[30px]">
                 <span className="text-[9px] font-black uppercase text-rose-400 flex items-center gap-1.5 whitespace-nowrap">
-                  <AlertTriangle className="w-3 h-3" /> Wipe All Data?
+                  <AlertTriangle className="w-3 h-3" /> Wipe?
                 </span>
                 <div className="flex items-center gap-2 border-l border-white/10 pl-3">
                   <button
                     onClick={handleClearData}
-                    className="px-2.5 py-1 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-400 transition-all active:scale-95 whitespace-nowrap"
+                    className="px-2 py-0.5 bg-rose-500 text-white rounded-md text-[8px] font-black uppercase tracking-widest hover:bg-rose-400 transition-all active:scale-95"
                   >
-                    Confirm
+                    OK
                   </button>
                   <button
                     onClick={() => setShowClearConfirm(false)}
-                    className="px-2.5 py-1 bg-white/5 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
+                    className="px-2 py-0.5 bg-white/5 text-slate-400 rounded-md text-[8px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
                   >
-                    Cancel
+                    X
                   </button>
                 </div>
               </div>
@@ -542,108 +551,110 @@ export default function ArbitrageTable() {
           </div>
         </div>
 
-        <div className="h-12 w-px bg-white/5 mx-2 hidden lg:block mb-1"></div>
+        <div className="h-20 w-px bg-white/5 mx-2 hidden lg:block"></div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <Filter className="w-3 h-3" /> Tier Filter
-          </label>
-          <div className="relative group">
-            <select
-              value={selectedTier}
-              onChange={(e) => setSelectedTier(e.target.value)}
-              className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer min-w-[140px] font-medium pr-10"
-            >
-              <option value="All">All Tiers</option>
-              <option value="4">Tier 4</option>
-              <option value="5">Tier 5</option>
-              <option value="6">Tier 6</option>
-              <option value="7">Tier 7</option>
-              <option value="8">Tier 8</option>
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 group-hover:text-amber-500 transition-colors">
-              <ChevronRight className="w-4 h-4 rotate-90" />
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+                <Filter className="w-3 h-3" /> Tier Filter
+              </label>
+              <div className="relative group">
+                <select
+                  value={selectedTier}
+                  onChange={(e) => setSelectedTier(e.target.value)}
+                  className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2 text-sm outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer min-w-[130px] font-medium pr-10 h-[40px]"
+                >
+                  <option value="All">All Tiers</option>
+                  <option value="4">Tier 4</option>
+                  <option value="5">Tier 5</option>
+                  <option value="6">Tier 6</option>
+                  <option value="7">Tier 7</option>
+                  <option value="8">Tier 8</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 group-hover:text-amber-500 transition-colors">
+                  <ChevronRight className="w-4 h-4 rotate-90" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-            Location
-          </label>
-          <div className="relative group">
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className={`bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer min-w-[140px] font-black pr-10 hover:bg-slate-900 ${selectedCity === 'Thetford' ? 'text-purple-400' :
-                  selectedCity === 'Fort Sterling' ? 'text-blue-200' :
-                    selectedCity === 'Lymhurst' ? 'text-emerald-400' :
-                      selectedCity === 'Bridgewatch' ? 'text-amber-400' :
-                        selectedCity === 'Martlock' ? 'text-blue-400' :
-                          selectedCity === 'Caerleon' ? 'text-red-400' :
-                            selectedCity === 'Brecilien' ? 'text-slate-100' :
-                              'text-slate-200'
-                }`}
-            >
-              <option value="All" className="text-slate-200 bg-slate-950 font-bold">All Cities</option>
-              <option value="Thetford" className="text-purple-400 bg-slate-950 font-bold">Thetford</option>
-              <option value="Fort Sterling" className="text-blue-200 bg-slate-950 font-bold">Fort Sterling</option>
-              <option value="Lymhurst" className="text-emerald-400 bg-slate-950 font-bold">Lymhurst</option>
-              <option value="Bridgewatch" className="text-amber-400 bg-slate-950 font-bold">Bridgewatch</option>
-              <option value="Martlock" className="text-blue-400 bg-slate-950 font-bold">Martlock</option>
-              <option value="Caerleon" className="text-red-400 bg-slate-950 font-bold">Caerleon</option>
-              <option value="Brecilien" className="text-slate-100 bg-slate-950 font-bold">Brecilien</option>
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 group-hover:text-amber-500 transition-colors">
-              <ChevronRight className="w-4 h-4 rotate-90" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                Location
+              </label>
+              <div className="relative group">
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className={`bg-slate-950 border border-white/5 rounded-xl px-4 py-2 text-sm outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer min-w-[130px] font-black pr-10 hover:bg-slate-900 h-[40px] ${selectedCity === 'Thetford' ? 'text-purple-400' :
+                      selectedCity === 'Fort Sterling' ? 'text-blue-200' :
+                        selectedCity === 'Lymhurst' ? 'text-emerald-400' :
+                          selectedCity === 'Bridgewatch' ? 'text-amber-400' :
+                            selectedCity === 'Martlock' ? 'text-blue-400' :
+                              selectedCity === 'Caerleon' ? 'text-red-400' :
+                                selectedCity === 'Brecilien' ? 'text-slate-100' :
+                                  'text-slate-200'
+                    }`}
+                >
+                  <option value="All" className="text-slate-200 bg-slate-950 font-bold">All Cities</option>
+                  <option value="Thetford" className="text-purple-400 bg-slate-950 font-bold">Thetford</option>
+                  <option value="Fort Sterling" className="text-blue-200 bg-slate-950 font-bold">Fort Sterling</option>
+                  <option value="Lymhurst" className="text-emerald-400 bg-slate-950 font-bold">Lymhurst</option>
+                  <option value="Bridgewatch" className="text-amber-400 bg-slate-950 font-bold">Bridgewatch</option>
+                  <option value="Martlock" className="text-blue-400 bg-slate-950 font-bold">Martlock</option>
+                  <option value="Caerleon" className="text-red-400 bg-slate-950 font-bold">Caerleon</option>
+                  <option value="Brecilien" className="text-slate-100 bg-slate-950 font-bold">Brecilien</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 group-hover:text-amber-500 transition-colors">
+                  <ChevronRight className="w-4 h-4 rotate-90" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <Coins className="w-3.5 h-3.5 text-slate-400" />
-            Min Profit
-          </label>
-          <div className="relative group">
-            <input
-              type="number"
-              value={localMinProfit}
-              onChange={(e) => setLocalMinProfit(e.target.value)}
-              className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-36 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-medium pr-10"
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-500/30 font-black text-[10px] pointer-events-none group-focus-within:text-amber-500 transition-colors">
-              SILVER
+ 
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+                <Coins className="w-3.5 h-3.5 text-slate-400" />
+                Min Profit
+              </label>
+              <div className="relative group">
+                <input
+                  type="number"
+                  value={localMinProfit}
+                  onChange={(e) => setLocalMinProfit(e.target.value)}
+                  className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2 text-sm w-32 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-medium pr-10 h-[40px]"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-500/30 font-black text-[10px] pointer-events-none group-focus-within:text-amber-500 transition-colors">
+                  SILVER
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
-            <Percent className="w-3 h-3" /> Min ROI
-          </label>
-          <div className="relative group">
-            <input
-              type="number"
-              value={localMinROI}
-              onChange={(e) => setLocalMinROI(e.target.value)}
-              className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2.5 text-sm w-28 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-medium pr-8"
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700 font-black text-[10px] pointer-events-none group-focus-within:text-amber-500 transition-colors">
-              %
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+                <Percent className="w-3 h-3" /> Min ROI
+              </label>
+              <div className="relative group">
+                <input
+                  type="number"
+                  value={localMinROI}
+                  onChange={(e) => setLocalMinROI(e.target.value)}
+                  className="bg-slate-950 border border-white/5 rounded-xl px-4 py-2 text-sm w-24 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-medium pr-8 h-[40px]"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700 font-black text-[10px] pointer-events-none group-focus-within:text-amber-500 transition-colors">
+                  %
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-3 ml-auto min-w-[320px]">
-          {/* Top Actions - Centered Row */}
-          <div className="flex items-start gap-4 justify-center">
-            <div className="flex flex-col gap-1.5 items-center">
-              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">Premium Status</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                Premium
+              </label>
               <button
                 onClick={() => setHasPremium(!hasPremium)}
-                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border h-[38px] min-w-[140px] ${hasPremium
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border h-[40px] min-w-[130px] ${hasPremium
                     ? 'bg-amber-500/20 border-amber-500/40 text-amber-500'
                     : 'bg-slate-950 border-white/5 text-slate-500 hover:border-white/10'
                   }`}
@@ -653,11 +664,14 @@ export default function ArbitrageTable() {
               </button>
             </div>
 
-            <div className="flex flex-col gap-1.5 items-center">
-              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">Filters</label>
+            <div className="flex flex-col gap-1.5 ml-auto">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+                <RefreshCw className="w-3 h-3 text-slate-500" />
+                Filters
+              </label>
               <button
                 onClick={resetFilters}
-                className="flex items-center justify-center gap-2 px-5 py-2 bg-rose-500/5 border border-rose-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all group h-[38px] min-w-[110px]"
+                className="flex items-center justify-center gap-2 px-5 py-2 bg-rose-500/5 border border-rose-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all group h-[40px] min-w-[100px]"
               >
                 <RefreshCw className="w-3 h-3 group-hover:-rotate-180 transition-transform" />
                 Reset
@@ -665,25 +679,111 @@ export default function ArbitrageTable() {
             </div>
           </div>
 
-          {/* Bottom Actions - Centered Row */}
-          <div className="flex items-center gap-3 justify-center pt-2 border-t border-white/5">
+          <div className="flex items-center gap-4 mt-1 border-t border-white/5 pt-3">
             <button
-              onClick={fetchData}
-              disabled={loading}
-              className={`flex items-center justify-center gap-2 px-6 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-500 hover:bg-amber-500/20 transition-all group h-[38px] min-w-[150px] ${loading ? 'opacity-50' : ''}`}
+              onClick={() => setShowBulkOnly(!showBulkOnly)}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 h-[32px] border relative overflow-hidden group ${showBulkOnly
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                  : 'bg-slate-950 border-white/10 text-slate-400 hover:text-amber-500 hover:border-amber-500/30'
+                }`}
             >
-              <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform'}`} />
-              {loading ? 'Syncing...' : 'Force Refresh'}
+              <Package className={`w-3.5 h-3.5 relative z-10 ${showBulkOnly ? 'fill-slate-950' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="relative z-10">Bulk Orders Only</span>
             </button>
 
-            <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-950/50 px-5 py-2 rounded-xl border border-white/5 h-[38px] min-w-[120px]">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.4)]"></span>
-              Live (AODP)
-            </div>
+            <button
+              onClick={() => setShowMaterialSettings(!showMaterialSettings)}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 h-[32px] border relative overflow-hidden group ${showMaterialSettings
+                  ? 'bg-purple-500 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
+                  : 'bg-slate-950 border-white/10 text-slate-400 hover:text-purple-400 hover:border-purple-500/30'
+                }`}
+            >
+              <Zap className={`w-3.5 h-3.5 relative z-10 ${showMaterialSettings ? 'fill-white animate-pulse' : ''}`} />
+              <span className="relative z-10">Material Settings</span>
+            </button>
           </div>
         </div>
       </div>
 
+      <div className="px-6 py-2 flex items-center justify-end gap-3 bg-white/[0.01] border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className={`flex items-center justify-center gap-2 px-5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-500 hover:bg-amber-500/20 transition-all group h-[32px] min-w-[130px] ${loading ? 'opacity-50' : ''}`}
+          >
+            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform'}`} />
+            {loading ? 'Syncing...' : 'Force Refresh'}
+          </button>
+
+          <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-950/50 px-3 py-1 rounded-xl border border-white/5 h-[32px]">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.4)]"></span>
+            Live
+          </div>
+        </div>
+      </div>
+
+
+
+      {/* Material Price Settings Panel - Premium Glassmorphism Version */}
+      {showMaterialSettings && (
+        <div className="mx-6 mt-6 mb-8 rounded-2xl border border-purple-500/20 bg-slate-900/40 backdrop-blur-xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_20_rgba(168,85,247,0.1)] animate-in fade-in slide-in-from-top-4 duration-500 relative overflow-hidden">
+          {/* Decorative background glow */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-purple-500/10 blur-[80px] rounded-full pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none" />
+
+          <div className="flex items-center justify-between mb-8 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg shadow-purple-500/20">
+                <Coins className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white uppercase tracking-[0.2em] leading-none">Material Market Rates</h3>
+                <p className="text-[10px] text-purple-400/60 font-bold uppercase tracking-widest mt-1">Configure unit prices for precise enchantment profit</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowMaterialSettings(false)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-500 hover:text-white hover:bg-rose-500/20 hover:text-rose-400 transition-all group"
+            >
+              <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative z-10">
+            {[4, 5, 6, 7, 8].map(tier => (
+              <div key={tier} className="group flex flex-col bg-slate-950/40 rounded-2xl border border-white/5 hover:border-purple-500/30 transition-all duration-300 p-5">
+                <div className="flex items-center justify-between mb-5 border-b border-white/5 pb-3">
+                  <span className="text-xs font-black text-white/40 group-hover:text-purple-400 transition-colors uppercase tracking-widest">Tier {tier}</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500/20 group-hover:bg-purple-500 transition-all" />
+                </div>
+                <div className="space-y-5">
+                  {['RUNE', 'SOUL', 'RELIC'].map(type => {
+                    const key = `T${tier}_${type}`;
+                    return (
+                      <div key={key} className="space-y-2">
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter group-hover:text-slate-400 transition-colors">{type}</label>
+                          {materialPrices[key] > 0 && <Check className="w-2.5 h-2.5 text-emerald-500/50" />}
+                        </div>
+                        <div className="relative group/input">
+                          <input
+                            type="number"
+                            value={materialPrices[key] || 0}
+                            onChange={(e) => setMaterialPrices(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+                            className="w-full bg-slate-900/60 border border-white/10 rounded-xl pl-4 pr-10 py-2.5 text-xs font-black text-white outline-none focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/10 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <Coins className="w-3.5 h-3.5 text-slate-600 absolute right-4 top-1/2 -translate-y-1/2 group-focus-within/input:text-purple-400 transition-colors" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto relative">
         <table className="w-full text-left border-collapse">
@@ -705,7 +805,7 @@ export default function ArbitrageTable() {
                 PROFIT ANALYSIS {sortConfig?.key === 'profit' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th className="px-6 py-4 text-center cursor-pointer hover:text-amber-500 transition-colors" onClick={() => requestSort('roi_percentage')}>
-                DYNAMICS {sortConfig?.key === 'roi_percentage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                ROI {sortConfig?.key === 'roi_percentage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th className="px-6 py-4 text-center text-slate-600">STATUS & ACTION</th>
             </tr>
@@ -1052,14 +1152,35 @@ export default function ArbitrageTable() {
                               <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black rounded border border-emerald-500/20 uppercase">Highly Profitable</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <div className="text-[9px] text-slate-500 font-bold uppercase">Estimated Net Profit</div>
-                                <div className="text-lg font-black text-emerald-400">+{Math.floor(op.sell_price - ((op.buy_price * 0.7) + (materialPrices[getMaterialId(op.item_id.split('_')[0], enchantLevel)] * getRequiredMaterials(op.item_id) || 0))).toLocaleString()} Silver</div>
-                              </div>
-                              <div className="space-y-1 text-right">
-                                <div className="text-[9px] text-slate-500 font-bold uppercase">Material Efficiency</div>
-                                <div className="text-lg font-black text-purple-400">Top 5% Market Value</div>
-                              </div>
+                              {(() => {
+                                const basePrice = Math.floor(op.buy_price * 0.65); // More conservative 65% estimate
+                                const matId = getMaterialId(op.item_id.split('_')[0], enchantLevel);
+                                const matCost = (materialPrices[matId] || 0) * getRequiredMaterials(op.item_id);
+                                const totalCost = basePrice + matCost;
+                                
+                                // Tax deduction: Sell Price - (Sell Price * tax_rate)
+                                // We use 4% for premium (default) or 8% for non-premium
+                                const taxMultiplier = hasPremium ? 0.96 : 0.92;
+                                const netRevenue = Math.floor(op.sell_price * taxMultiplier);
+                                const netProfit = netRevenue - totalCost;
+
+                                return (
+                                  <>
+                                    <div className="space-y-1">
+                                      <div className="text-[9px] text-slate-500 font-bold uppercase">Estimated Net Profit (After Tax)</div>
+                                      <div className={`text-lg font-black ${netProfit > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {netProfit > 0 ? '+' : ''}{netProfit.toLocaleString()} Silver
+                                      </div>
+                                    </div>
+                                    <div className="space-y-1 text-right">
+                                      <div className="text-[9px] text-slate-500 font-bold uppercase">Tax Deducted</div>
+                                      <div className="text-sm font-bold text-rose-400/60">
+                                        -{Math.floor(op.sell_price * (1 - taxMultiplier)).toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
