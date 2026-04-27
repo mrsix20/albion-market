@@ -297,3 +297,30 @@ def clear_all_private_data(user_id: str):
     except Exception as e:
         print(f"Clear DB Error: {e}")
         return False
+
+def delete_specific_deal(user_id: str, item_id: str, quality: int, city: str):
+    """Deletes a specific price record from the database."""
+    try:
+        with db_lock:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            # Delete from main prices
+            cursor.execute("""
+                DELETE FROM private_prices 
+                WHERE user_id = ? AND item_id = ? AND quality = ? AND city = ?
+            """, (user_id, item_id, quality, city))
+            
+            # If the city is Black Market, also delete all tiers for this item+quality
+            # This ensures Bulk Deals for this item also disappear
+            if city == "Black Market":
+                cursor.execute("""
+                    DELETE FROM bm_tiers 
+                    WHERE user_id = ? AND item_id = ? AND quality = ?
+                """, (user_id, item_id, quality))
+                
+            conn.commit()
+            conn.close()
+            return True
+    except Exception as e:
+        print(f"Delete Deal Error: {e}")
+        return False

@@ -38,26 +38,17 @@ async def sync_private_prices(prices: List[AODPPriceData], x_user_id: Optional[s
 @router.post("/private-sync/invalidate")
 async def invalidate_deal(req: InvalidateRequest, x_user_id: Optional[str] = Header(None)):
     try:
-        from services.private_price_service import ingest_private_data
+        from services.private_price_service import delete_specific_deal
         user_id = x_user_id or "global"
-        now = datetime.utcnow().isoformat() + "Z"
         
-        dummy_price = AODPPriceData(
-            item_id=req.item_id,
-            city=req.city,
-            quality=req.quality,
-            sell_price_min=0,
-            sell_price_min_date=now,
-            sell_price_max=0,
-            sell_price_max_date=now,
-            buy_price_min=0,
-            buy_price_min_date=now,
-            buy_price_max=0,
-            buy_price_max_date=now,
-            is_private=True
-        )
-        ingest_private_data(user_id, [dummy_price])
-        return {"status": "success", "message": "Deal invalidated"}
+        # Delete the specific Royal City source record
+        delete_specific_deal(user_id, req.item_id, req.quality, req.city)
+        
+        # ALSO delete the Black Market side if we want it to stay hidden entirely
+        # This prevents the flipper from finding ANY routes for this specific item+quality combo
+        delete_specific_deal(user_id, req.item_id, req.quality, "Black Market")
+        
+        return {"status": "success", "message": "Deal permanently deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
