@@ -414,7 +414,7 @@ export default function ArbitrageTable() {
     const cityMatch = selectedCity === "All" || op.buy_from_city === selectedCity;
     const profitMatch = op.profit >= minProfit;
     const roiMatch = op.roi_percentage >= minROI;
-    const bulkMatch = !showBulkOnly || ((op.sell_amount || 0) > 1);
+    const bulkMatch = !showBulkOnly || ((op.demand || 0) > 1);
     return tierMatch && cityMatch && profitMatch && roiMatch && bulkMatch;
   });
 

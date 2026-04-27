@@ -12,7 +12,6 @@ export interface ArbitrageOpportunity {
   buy_price_date: string;
   sell_price_date: string;
   demand?: number;
-  sell_amount?: number;
   is_private?: boolean;
 }
 
